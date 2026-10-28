@@ -32,12 +32,18 @@ The code is a login token for your Claude subscription, not an API key. It stays
 **✔ VERIFIED** means everything matched the page. **⚠ REVIEW** means something couldn't be confirmed (hover over the ? marks to see what). **✘ FAILED CHECK** means something is missing. Open the source before reading a ⚠ or ✘ card in round.
 
 ## Card formatting
-In **Settings → Card formatting** you can choose:
-- the highlight color: bright green, **cyan/turquoise**, yellow, pink, gray or light blue
-- the font: **Calibri**, Arial, Times New Roman, Cambria, Georgia, Garamond, Verdana or Helvetica
-- the tag, read and small font sizes
+The bar above your cards controls how they look and paste:
+- **Font:** Calibri, Times New Roman, Arial, Cambria, Aptos, Georgia, Garamond, Book Antiqua, Century Gothic, Verdana, Tahoma or Helvetica
+- **Highlight:** bright green, **cyan**, yellow, pink, blue, red, light blue, orange or gray, plus **＋** to pick any color
+- **Sizes:** tag, read text and small text, in points
 
-The preview updates as you change them. Click **Save settings** to keep them. Copied and downloaded cards use your formatting.
+Changes apply to every card right away and save automatically.
+
+## Choosing how recent the evidence is
+Use **Published** in the cut form: *2026 only*, *2025 only*, *2025 or newer*, *2024 or newer*, *Last 6 months*, *Last 12 months* (the default), *Any time*, or **Custom years** (for example 2023 to 2026).
+- Searches look only in that range.
+- Downloaded articles dated outside it are skipped before Claude reads them, which saves credits.
+- Every card gets an **In your date range** check, and any card outside the range is removed.
 
 ## Using your browser
 **✂️ Cut with Negi bookmark:** drag it from Settings to your bookmarks bar. On any article, click it. Negi receives the article text **straight from your browser**, so it works even on paywalled pages you're logged into and sites that block automatic downloads. You can highlight a passage first to focus her. Each card also has an **Open source** button.

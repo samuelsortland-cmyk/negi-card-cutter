@@ -75,6 +75,21 @@
         <label>Card length
           <select id="length"><option value="nolimit" selected>No limit (whole section)</option><option value="long">Long (3-6 paragraphs)</option><option value="medium">Medium (2-3 paragraphs)</option><option value="short">Short (1 paragraph)</option></select>
         </label>
+        <label>Published
+          <select id="dateRange">
+            <option value="any">Any time</option>
+            <option value="y:2026">2026 only</option>
+            <option value="y:2025">2025 only</option>
+            <option value="since:2025">2025 or newer</option>
+            <option value="since:2024">2024 or newer</option>
+            <option value="m:6">Last 6 months</option>
+            <option value="m:12" selected>Last 12 months</option>
+            <option value="custom">Custom years…</option>
+          </select>
+        </label>
+        <label id="customYears" hidden>From year to year
+          <span class="sizes"><input id="yearFrom" type="number" min="1945" max="2100" placeholder="2023" aria-label="From year"><input id="yearTo" type="number" min="1945" max="2100" placeholder="2026" aria-label="To year"></span>
+        </label>
       </div>
       <label>What should the card prove? (your tag / argument)
         <textarea id="argument" rows="2" placeholder="e.g. TPNW ratification forces an end to NATO nuclear sharing, which collapses extended deterrence"></textarea>
@@ -108,7 +123,34 @@
           <button id="clearAll" class="pix small ghost">Clear</button>
         </div>
       </div>
-      <p class="muted">Pasting into Word or Google Docs keeps the tags, cites, underlines, highlights, and bold. <span id="autosave" class="saved"></span></p>
+      <div class="fmt-bar" role="group" aria-label="Card format">
+        <label class="fmt-item">Font
+          <select id="font">
+            <option>Calibri</option><option>Times New Roman</option><option>Arial</option><option>Cambria</option>
+            <option>Aptos</option><option>Georgia</option><option>Garamond</option><option>Book Antiqua</option>
+            <option>Century Gothic</option><option>Verdana</option><option>Tahoma</option><option>Helvetica</option>
+          </select>
+        </label>
+        <div class="fmt-item">Highlight
+          <div class="swatches" id="swatches">
+            <button type="button" data-c="#00FF00" title="Bright green"></button>
+            <button type="button" data-c="#00FFFF" title="Cyan (turquoise)"></button>
+            <button type="button" data-c="#FFFF00" title="Yellow"></button>
+            <button type="button" data-c="#FF00FF" title="Pink"></button>
+            <button type="button" data-c="#0000FF" title="Blue"></button>
+            <button type="button" data-c="#FF0000" title="Red"></button>
+            <button type="button" data-c="#99CCFF" title="Light blue"></button>
+            <button type="button" data-c="#FFC000" title="Orange"></button>
+            <button type="button" data-c="#C0C0C0" title="Gray"></button>
+            <label class="custom" title="Pick any color"><input type="color" id="hlCustom" aria-label="Custom highlight color">＋</label>
+          </div>
+          <input type="hidden" id="hlColor">
+        </div>
+        <label class="fmt-item">Sizes <span class="muted">tag / read / small</span>
+          <span class="sizes"><input id="tagPt" type="number" min="8" max="24" aria-label="Tag size"><input id="readPt" type="number" min="6" max="20" aria-label="Read size"><input id="smallPt" type="number" min="4" max="14" aria-label="Small text size"></span>
+        </label>
+      </div>
+      <p class="muted">Changes apply to every card right away and save automatically. Pasting into Word or Google Docs keeps the tags, cites, underlines, highlights, and bold. <span id="autosave" class="saved"></span></p>
       <div id="cards"></div>
     </section>
 
@@ -129,30 +171,7 @@
       </div>
       <label class="chk"><input type="checkbox" id="deepCheck"> Web-check credentials and dates <b>only</b> when the article doesn't state them (a few extra credits, and only when needed)</label>
 
-      <h3 class="sub">Card formatting</h3>
-      <div class="row three">
-        <label>Highlight color
-          <select id="hlColor">
-            <option value="#00FF00">Bright green</option>
-            <option value="#00FFFF">Cyan / turquoise</option>
-            <option value="#FFFF00">Yellow</option>
-            <option value="#FF00FF">Pink</option>
-            <option value="#C0C0C0">Gray</option>
-            <option value="#99CCFF">Light blue</option>
-          </select>
-        </label>
-        <label>Font
-          <select id="font">
-            <option>Calibri</option><option>Arial</option><option>Times New Roman</option><option>Cambria</option>
-            <option>Georgia</option><option>Garamond</option><option>Verdana</option><option>Helvetica</option>
-          </select>
-        </label>
-        <label>Sizes (tag / read / small)
-          <span class="sizes"><input id="tagPt" type="number" min="8" max="24"><input id="readPt" type="number" min="6" max="20"><input id="smallPt" type="number" min="4" max="14"></span>
-        </label>
-      </div>
-      <div class="preview-label muted">Preview</div>
-      <div class="card" id="fmtPreview"></div>
+      <p class="muted">Fonts, highlight colors and sizes are in the bar above your cards, under <b>Ready-to-paste cards</b>.</p>
 
       <h3 class="sub">Cut from your browser</h3>
       <p class="muted">Drag this button to your bookmarks bar. On any article, even a paywalled one you're logged into, click it and Negi gets the page text straight from your browser (highlight a passage first to focus her):

@@ -22,13 +22,15 @@
     renderCards();
   }).catch(() => {});
 
-  const DRAFT_FIELDS = ['side', 'count', 'length', 'argument', 'url', 'selection', 'notes'];
+  const DRAFT_FIELDS = ['side', 'count', 'length', 'dateRange', 'yearFrom', 'yearTo', 'argument', 'url', 'selection', 'notes'];
   const saveDraft = debounce(() => {
     const d = {}; for (const k of DRAFT_FIELDS) d[k] = $(k).value;
     fetch('/api/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).then(flashSaved).catch(() => {});
   }, 600);
   const draftReady = fetch('/api/draft').then((r) => r.json()).then((d) => {
-    for (const k of DRAFT_FIELDS) if (d && d[k] != null && $(k).value === $(k).defaultValue) $(k).value = d[k];
+    // only fill fields you haven't touched yet (selects compare against their default option)
+    const untouched = (el) => el.tagName === 'SELECT' ? el.value === ([...el.options].find((o) => o.defaultSelected) || el.options[0]).value : el.value === el.defaultValue;
+    for (const k of DRAFT_FIELDS) if (d && d[k] != null && untouched($(k))) $(k).value = d[k];
   }).catch(() => {});
   for (const k of DRAFT_FIELDS) $(k).addEventListener('input', saveDraft);
 
@@ -52,9 +54,23 @@
     config = c;
     $('topic').value = c.topic; $('initials').value = c.initials; $('model').value = c.model ?? 'sonnet'; $('deepCheck').checked = c.deepCheck !== false; $('autoUpdate').checked = c.autoUpdate !== false;
     for (const k of FMT_KEYS) $(k).value = c[k];
+    markSwatch();
     renderCards(); renderPreview();
   });
   const FMT_KEYS = ['hlColor', 'font', 'tagPt', 'readPt', 'smallPt'];
+  // Highlight swatches + custom picker write into the hidden #hlColor field.
+  function setHighlight(c) { $('hlColor').value = c.toUpperCase(); markSwatch(); $('hlColor').dispatchEvent(new Event('input')); }
+  function markSwatch() {
+    const cur = ($('hlColor').value || '#00FF00').toUpperCase();
+    let known = false;
+    document.querySelectorAll('#swatches [data-c]').forEach((b) => { const on = b.dataset.c === cur; b.setAttribute('aria-pressed', on); known ||= on; });
+    $('hlCustom').value = cur.toLowerCase();
+    $('hlCustom').parentElement.classList.toggle('on', !known);
+    $('hlCustom').parentElement.style.background = known ? '' : cur;
+  }
+  document.querySelectorAll('#swatches [data-c]').forEach((b) => { b.style.background = b.dataset.c; b.onclick = () => setHighlight(b.dataset.c); });
+  $('hlCustom').addEventListener('input', (e) => setHighlight(e.target.value));
+  setTimeout(() => [...$('font').options].forEach((o) => { o.style.fontFamily = `'${o.value}',${FALLBACK[o.value] || 'sans-serif'}`; }));
   function settingsFromForm() {
     const o = { initials: $('initials').value.trim(), model: $('model').value, deepCheck: $('deepCheck').checked, topic: $('topic').value.trim(), autoUpdate: $('autoUpdate').checked };
     for (const k of FMT_KEYS) o[k] = /Pt$/.test(k) ? Math.max(4, Math.min(24, parseFloat($(k).value) || 0)) : $(k).value;
@@ -63,7 +79,7 @@
   // Settings save themselves a moment after you change them.
   const saveSettings = debounce(async () => {
     config = await (await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settingsFromForm()) })).json();
-    $('settingsSaved').textContent = '✓ Settings saved';
+    $('settingsSaved').textContent = '✓ Settings saved.';
     flashSaved();
   }, 500);
   for (const k of [...FMT_KEYS, 'initials', 'model', 'deepCheck', 'topic', 'autoUpdate']) {
@@ -141,6 +157,24 @@
     history.replaceState(null, '', '/');
   }
 
+  // ------------------------------------------------------------ date range
+  const iso = (d) => d.toISOString().slice(0, 10);
+  function dateBounds() {
+    const v = $('dateRange').value, [kind, n] = v.split(':'), today = new Date();
+    if (kind === 'y') return { dateFrom: `${n}-01-01`, dateTo: `${n}-12-31` };
+    if (kind === 'since') return { dateFrom: `${n}-01-01`, dateTo: iso(today) };
+    if (kind === 'm') { const d = new Date(today); d.setMonth(d.getMonth() - +n); return { dateFrom: iso(d), dateTo: iso(today) }; }
+    if (kind === 'custom') {
+      let a = parseInt($('yearFrom').value) || 0, b = parseInt($('yearTo').value) || 0;
+      if (a && b && a > b) [a, b] = [b, a];
+      return { dateFrom: a ? `${a}-01-01` : '', dateTo: b ? `${b}-12-31` : '' };
+    }
+    return { dateFrom: '', dateTo: '' };
+  }
+  const syncCustom = () => { $('customYears').hidden = $('dateRange').value !== 'custom'; };
+  $('dateRange').addEventListener('input', syncCustom);
+  draftReady.then(syncCustom);
+
   // ------------------------------------------------------------ jobs
   let busy = false, ctrl = null;
   function log(text, cls) {
@@ -171,7 +205,7 @@
 
   $('cutBtn').onclick = async () => {
     const job = { topic: $('topic').value.trim(), side: $('side').value, count: $('count').value, argument: $('argument').value.trim(),
-      url: $('url').value.trim(), selection: $('selection').value.trim(), notes: $('notes').value.trim(), length: $('length').value, inboxId };
+      url: $('url').value.trim(), selection: $('selection').value.trim(), notes: $('notes').value.trim(), length: $('length').value, inboxId, ...dateBounds() };
     if (!job.argument && !job.url) return say('Tell me what the card should prove (or give me a URL)! 🥺', 'worried');
     $('log').innerHTML = ''; setBusy(true);
     try { await stream('/api/cut', job, handle); }
@@ -189,7 +223,8 @@
   // ------------------------------------------------------------ card rendering
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   // Card styles come from Settings > Card formatting.
-  const FALLBACK = { Calibri: 'Carlito,sans-serif', Arial: 'Helvetica,sans-serif', Helvetica: 'Arial,sans-serif', Verdana: 'sans-serif', 'Times New Roman': 'Times,serif', Cambria: 'Georgia,serif', Georgia: 'serif', Garamond: 'Georgia,serif' };
+  const FALLBACK = { Calibri: 'Carlito,sans-serif', Arial: 'Helvetica,sans-serif', Helvetica: 'Arial,sans-serif', Verdana: 'sans-serif', Tahoma: 'Verdana,sans-serif',
+    Aptos: 'Calibri,sans-serif', 'Century Gothic': 'Futura,sans-serif', 'Times New Roman': 'Times,serif', Cambria: 'Georgia,serif', Georgia: 'serif', Garamond: 'Georgia,serif', 'Book Antiqua': 'Palatino,serif' };
   const fmt = () => {
     const f = config.font || 'Calibri';
     return { FONT: `font-family:'${f}',${FALLBACK[f] || 'sans-serif'};`, tag: config.tagPt || 13, read: config.readPt || 11, small: config.smallPt || 8, hl: config.hlColor || '#00FF00' };
@@ -249,11 +284,11 @@
 
   const SAMPLE = { tag: 'European TPNW ratification <u>forces B61s out</u> and <u>guts extended deterrence</u>.', cite: { authorLast: 'Ellison', authorFull: 'Jordan Ellison', credentials: 'Senior Fellow for Nuclear Policy', date: '09-14-2026', title: 'Why the Ban Treaty and NATO Cannot Coexist', publication: 'Example Review', url: 'https://example.org/article' },
     paragraphs: ['The consequences would extend well beyond the four host nations. <u>Nuclear sharing exists precisely to <h>show Moscow</h> that <h>an attack on any ally risks a response</h> that <h>Russia <b>cannot control</b></h>.</u>'] };
-  function renderPreview() { $('fmtPreview').innerHTML = cardHtml(SAMPLE); }
+  function renderPreview() {} // the cards themselves (or the sample below) show the format live
 
   function renderCards() {
     const lib = getCards(), box = $('cards');
-    if (!lib.length) { box.innerHTML = '<div class="empty">No cards yet. Negi is waiting with her highlighter 🥬</div>'; return; }
+    if (!lib.length) { box.innerHTML = `<div class="empty">No cards yet. Here's how yours will look:</div><div class="card-wrap"><div class="card">${cardHtml(SAMPLE)}</div></div>`; return; }
     box.innerHTML = '';
     lib.forEach((c, i) => {
       const st = c.check?.status || 'review';
