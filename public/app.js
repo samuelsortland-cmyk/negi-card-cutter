@@ -22,7 +22,7 @@
     renderCards();
   }).catch(() => {});
 
-  const DRAFT_FIELDS = ['side', 'count', 'length', 'dateRange', 'yearFrom', 'yearTo', 'argument', 'url', 'selection', 'notes'];
+  const DRAFT_FIELDS = ['mode', 'oppArg', 'responseType', 'side', 'count', 'length', 'dateRange', 'yearFrom', 'yearTo', 'argument', 'url', 'selection', 'notes'];
   const saveDraft = debounce(() => {
     const d = {}; for (const k of DRAFT_FIELDS) d[k] = $(k).value;
     fetch('/api/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).then(flashSaved).catch(() => {});
@@ -175,6 +175,24 @@
   $('dateRange').addEventListener('input', syncCustom);
   draftReady.then(syncCustom);
 
+  // ------------------------------------------------------------ speech mode
+  function showMode(user) {
+    const reb = $('mode').value === 'rebuttal';
+    document.querySelectorAll('.seg-btn').forEach((b) => b.setAttribute('aria-checked', b.dataset.mode === $('mode').value));
+    $('rebuttalBox').hidden = !reb;
+    $('argLabel').textContent = reb ? 'Your point (optional): what your response should establish' : 'What should the card prove? (your tag / argument)';
+    $('argument').placeholder = reb ? 'e.g. Removing the B61s lowers the risk of a Russian first strike' : 'e.g. TPNW ratification forces an end to NATO nuclear sharing, which collapses extended deterrence';
+    if (user && reb && $('length').value === 'nolimit') $('length').value = 'medium'; // rebuttal cards should be quick
+    if (user && !reb && ['short', 'medium'].includes($('length').value)) $('length').value = 'nolimit';
+  }
+  document.querySelectorAll('.seg-btn').forEach((b) => (b.onclick = () => {
+    $('mode').value = b.dataset.mode; showMode(true);
+    $('mode').dispatchEvent(new Event('input')); $('length').dispatchEvent(new Event('input'));
+    say(b.dataset.mode === 'rebuttal' ? 'Rebuttal mode! Short, punchy answers ⚡' : 'Constructive mode! Full warrants 📚', 'happy');
+  }));
+  showMode(false);
+  draftReady.then(() => showMode(false));
+
   // ------------------------------------------------------------ jobs
   let busy = false, ctrl = null;
   function log(text, cls) {
@@ -205,8 +223,10 @@
 
   $('cutBtn').onclick = async () => {
     const job = { topic: $('topic').value.trim(), side: $('side').value, count: $('count').value, argument: $('argument').value.trim(),
-      url: $('url').value.trim(), selection: $('selection').value.trim(), notes: $('notes').value.trim(), length: $('length').value, inboxId, ...dateBounds() };
-    if (!job.argument && !job.url) return say('Tell me what the card should prove (or give me a URL)! 🥺', 'worried');
+      url: $('url').value.trim(), selection: $('selection').value.trim(), notes: $('notes').value.trim(), length: $('length').value, inboxId, ...dateBounds(),
+      mode: $('mode').value, oppArg: $('oppArg').value.trim(), responseType: $('responseType').value };
+    if (job.mode === 'rebuttal' && !job.oppArg && !job.url) return say('Tell me the opponent argument you want to answer! 🥺', 'worried');
+    if (job.mode !== 'rebuttal' && !job.argument && !job.url) return say('Tell me what the card should prove (or give me a URL)! 🥺', 'worried');
     $('log').innerHTML = ''; setBusy(true);
     try { await stream('/api/cut', job, handle); }
     catch (e) { if (e.name !== 'AbortError') { log('❌ ' + e.message, 'error'); say('I lost connection to my server 😢 Is it running?', 'sad'); } }
@@ -294,7 +314,7 @@
       const st = c.check?.status || 'review';
       const label = { verified: '✔ VERIFIED', review: '⚠ REVIEW', fail: '✘ FAILED CHECK' }[st];
       const w = document.createElement('div'); w.className = 'card-wrap';
-      w.innerHTML = `<div class="card-bar"><span class="badge ${st}">${label}</span>${c.side ? `<b>${esc(c.side)}</b>` : ''}<span class="sp"></span>
+      w.innerHTML = `<div class="card-bar"><span class="badge ${st}">${label}</span>${c.side ? `<b>${esc(c.side)}</b>` : ''}${c.mode ? `<span class="chip">${esc(c.mode)}</span>` : ''}${c.read ? `<span class="chip" title="${c.read.words} highlighted words">🕒 ~${c.read.seconds}s read</span>` : ''}<span class="sp"></span>
         <button class="pix small" data-a="copy">Copy card</button><button class="pix small" data-a="open">Open source</button><button class="pix small ghost" data-a="del">✕</button></div>
         <details class="checks" ${st !== 'verified' ? 'open' : ''}><summary>Double-check report</summary>${checksHtml(c)}</details>
         <div class="card">${cardHtml(c)}</div>`;

@@ -39,6 +39,14 @@ The bar above your cards controls how they look and paste:
 
 Changes apply to every card right away and save automatically.
 
+## Constructive or rebuttal
+Pick **Speech** at the top of the cut form:
+- **Constructive:** case cards with a full warrant, link and impact. The highlighting is aimed at about 25–90 words (roughly 8–25 seconds read aloud), or up to 110 words with **No limit** length.
+- **Rebuttal:** quick answers to the other team. Fill in **Opponent's argument you're answering**, and optionally choose a **Response type**: turn, no link, non-unique, mitigation, impact defense or evidence indict. The tag starts with the label (for example "TURN — …"), and the highlighting is aimed at 12–45 words (about 4–12 seconds).
+
+### Reading-length check
+Before you get a card, Negi counts the highlighted words and checks that they read smoothly, without strings of 1–2 word fragments. If a card is too long, too short or choppy, she re-highlights just that card once, automatically. Each card shows its read time (🕒 ~11s read), and the double-check report includes **Reading length** and **Reads smoothly**.
+
 ## Choosing how recent the evidence is
 Use **Published** in the cut form: *2026 only*, *2025 only*, *2025 or newer*, *2024 or newer*, *Last 6 months*, *Last 12 months* (the default), *Any time*, or **Custom years** (for example 2023 to 2026).
 - Searches look only in that range.

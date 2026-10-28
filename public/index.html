@@ -62,6 +62,14 @@
 
     <section class="panel">
       <h2>✂️ Cut cards</h2>
+      <div class="mode-row">
+        <span class="mode-label">Speech</span>
+        <div class="seg" role="radiogroup" aria-label="Speech">
+          <button type="button" class="seg-btn" data-mode="constructive" role="radio">Constructive <small>full warrants, ~10–30s reads</small></button>
+          <button type="button" class="seg-btn" data-mode="rebuttal" role="radio">Rebuttal <small>quick answers, ~5–12s reads</small></button>
+        </div>
+        <input type="hidden" id="mode" value="constructive">
+      </div>
       <label>Topic
         <input id="topic" type="text">
       </label>
@@ -91,7 +99,23 @@
           <span class="sizes"><input id="yearFrom" type="number" min="1945" max="2100" placeholder="2023" aria-label="From year"><input id="yearTo" type="number" min="1945" max="2100" placeholder="2026" aria-label="To year"></span>
         </label>
       </div>
-      <label>What should the card prove? (your tag / argument)
+      <div id="rebuttalBox" class="rebuttal-box" hidden>
+        <label>Opponent's argument you're answering
+          <textarea id="oppArg" rows="2" placeholder="e.g. Ratifying the TPNW collapses NATO deterrence and emboldens Russia"></textarea>
+        </label>
+        <label>Response type
+          <select id="responseType">
+            <option value="">Best available (Negi picks)</option>
+            <option value="turn">Turn: their argument goes the other way</option>
+            <option value="delink">No link / delink: the resolution doesn't cause it</option>
+            <option value="nonunique">Non-unique: it happens either way</option>
+            <option value="mitigate">Mitigation: the impact is smaller or less likely</option>
+            <option value="impactdef">Impact defense: their impact won't happen</option>
+            <option value="indict">Evidence indict: their source or study is flawed</option>
+          </select>
+        </label>
+      </div>
+      <label><span id="argLabel">What should the card prove? (your tag / argument)</span>
         <textarea id="argument" rows="2" placeholder="e.g. TPNW ratification forces an end to NATO nuclear sharing, which collapses extended deterrence"></textarea>
       </label>
       <label>Specific article URL <span class="muted">(optional: paste from your browser, or use the bookmarklet)</span>
