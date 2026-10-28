@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Negi · PF Card Cutter</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥬</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="pet-panel">
+    <div class="bubble" id="bubble">Hi! I'm Negi~ Tell me what card you need and I'll go cut it! ✂️</div>
+    <div class="stage">
+      <canvas id="pet"></canvas>
+    </div>
+    <div class="pet-version" id="petVersion"></div>
+    <details class="ask">
+      <summary>Ask Negi a PF question</summary>
+      <textarea id="askQ" rows="2" placeholder="e.g. What's the best weighing vs. a nuclear-war impact?"></textarea>
+      <label class="chk"><input type="checkbox" id="askWeb"> Let her search the web</label>
+      <button id="askBtn" class="pix small">Ask</button>
+      <div id="askA" class="answer"></div>
+    </details>
+  </aside>
+
+  <main>
+    <div class="update-banner" id="updateBanner" hidden>
+      <span id="updateText"></span>
+      <span class="sp"></span>
+      <button id="updateNow" class="pix small">Update now</button>
+      <button id="updateLater" class="pix small ghost">Later</button>
+    </div>
+    <section class="panel connect" id="connectPanel">
+      <div class="connect-head">
+        <h2>🔌 Claude connection</h2>
+        <span id="connBadge" class="badge review">Checking…</span>
+      </div>
+      <div id="connInstall" hidden>
+        <p>Negi needs <b>Claude Code</b> on this computer. Click below and a window will install it (takes about a minute). When it finishes, click <b>Check again</b>.</p>
+        <button id="installBtn" class="pix big">1. Install Claude Code</button>
+        <button class="pix recheck">Check again</button>
+      </div>
+      <div id="connLogin" hidden>
+        <div class="step">
+          <button id="loginBtn" class="pix big">1. Connect Claude</button>
+          <p class="muted">A black window opens, then your browser. Sign in to Claude and click <b>Authorize</b>. The black window then shows a long code starting with <code>sk-ant-</code>. Select all of it and press <b>Ctrl+C</b> (Mac: ⌘+C).</p>
+        </div>
+        <div class="step">
+          <button id="pasteBtn" class="pix big">2. Paste code 📋</button>
+          <p class="muted">Or paste it here yourself and press Save:</p>
+          <div class="token-row"><input id="tokenInput" type="password" placeholder="sk-ant-…" autocomplete="off"><button id="saveToken" class="pix small">Save</button></div>
+        </div>
+        <button class="pix small ghost recheck">I already logged in, check again</button>
+      </div>
+      <div id="connOk" hidden>
+        <p class="ok-line">✔ Negi is connected to your Claude account. You're ready to cut!</p>
+        <button id="disconnectBtn" class="pix small ghost" hidden>Forget saved code</button>
+      </div>
+      <div id="connMsg" class="status"></div>
+    </section>
+
+    <section class="panel">
+      <h2>✂️ Cut cards</h2>
+      <label>Topic
+        <input id="topic" type="text">
+      </label>
+      <div class="row">
+        <label>Side
+          <select id="side"><option value="Pro">Pro (Aff)</option><option value="Con">Con (Neg)</option><option value="">Either</option></select>
+        </label>
+        <label>How many
+          <select id="count"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select>
+        </label>
+        <label>Card length
+          <select id="length"><option value="nolimit" selected>No limit (whole section)</option><option value="long">Long (3-6 paragraphs)</option><option value="medium">Medium (2-3 paragraphs)</option><option value="short">Short (1 paragraph)</option></select>
+        </label>
+      </div>
+      <label>What should the card prove? (your tag / argument)
+        <textarea id="argument" rows="2" placeholder="e.g. TPNW ratification forces an end to NATO nuclear sharing, which collapses extended deterrence"></textarea>
+      </label>
+      <label>Specific article URL <span class="muted">(optional: paste from your browser, or use the bookmarklet)</span>
+        <input id="url" type="url" placeholder="https://…">
+      </label>
+      <div id="inboxNote" class="inbox-note" hidden></div>
+      <details>
+        <summary>More options</summary>
+        <label>Passage to cut from <span class="muted">(optional: text you highlighted)</span>
+          <textarea id="selection" rows="3"></textarea>
+        </label>
+        <label>Extra instructions
+          <input id="notes" type="text" placeholder="e.g. only think tanks, after 2025, European authors">
+        </label>
+      </details>
+      <div class="actions">
+        <button id="cutBtn" class="pix big">Cut it, Negi! ✂️</button>
+        <button id="stopBtn" class="pix ghost" hidden>Stop</button>
+      </div>
+      <div id="log" class="log" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <div class="cards-head">
+        <h2>📋 Ready-to-paste cards</h2>
+        <div>
+          <button id="copyAll" class="pix small">Copy all</button>
+          <button id="downloadDoc" class="pix small">Download .doc</button>
+          <button id="clearAll" class="pix small ghost">Clear</button>
+        </div>
+      </div>
+      <p class="muted">Pasting into Word or Google Docs keeps the tags, cites, underlines, highlights, and bold. <span id="autosave" class="saved"></span></p>
+      <div id="cards"></div>
+    </section>
+
+    <section class="panel">
+      <h2>⚙️ Settings</h2>
+      <div class="row">
+        <label>Your initials for cites (//XX)
+          <input id="initials" type="text" placeholder="e.g. Lunde">
+        </label>
+        <label>Claude model
+          <select id="model">
+            <option value="sonnet">Sonnet (recommended, uses fewer credits)</option>
+            <option value="haiku">Haiku (cheapest, rougher highlighting)</option>
+            <option value="opus">Opus (best quality, most credits)</option>
+            <option value="">Claude Code default</option>
+          </select>
+        </label>
+      </div>
+      <label class="chk"><input type="checkbox" id="deepCheck"> Web-check credentials and dates <b>only</b> when the article doesn't state them (a few extra credits, and only when needed)</label>
+
+      <h3 class="sub">Card formatting</h3>
+      <div class="row three">
+        <label>Highlight color
+          <select id="hlColor">
+            <option value="#00FF00">Bright green</option>
+            <option value="#00FFFF">Cyan / turquoise</option>
+            <option value="#FFFF00">Yellow</option>
+            <option value="#FF00FF">Pink</option>
+            <option value="#C0C0C0">Gray</option>
+            <option value="#99CCFF">Light blue</option>
+          </select>
+        </label>
+        <label>Font
+          <select id="font">
+            <option>Calibri</option><option>Arial</option><option>Times New Roman</option><option>Cambria</option>
+            <option>Georgia</option><option>Garamond</option><option>Verdana</option><option>Helvetica</option>
+          </select>
+        </label>
+        <label>Sizes (tag / read / small)
+          <span class="sizes"><input id="tagPt" type="number" min="8" max="24"><input id="readPt" type="number" min="6" max="20"><input id="smallPt" type="number" min="4" max="14"></span>
+        </label>
+      </div>
+      <div class="preview-label muted">Preview</div>
+      <div class="card" id="fmtPreview"></div>
+
+      <h3 class="sub">Cut from your browser</h3>
+      <p class="muted">Drag this button to your bookmarks bar. On any article, even a paywalled one you're logged into, click it and Negi gets the page text straight from your browser (highlight a passage first to focus her):
+        <a id="bookmarklet" class="bookmarklet" href="#">✂️ Cut with Negi</a></p>
+      <h3 class="sub">Updates</h3>
+      <label class="chk"><input type="checkbox" id="autoUpdate"> Install updates automatically (only when Negi isn't cutting). Your cards and settings are kept.</label>
+      <div class="update-row"><span id="versionLine" class="muted">Negi</span><button id="checkUpdates" class="pix small">Check for updates</button></div>
+      <p class="muted"><span id="settingsSaved">Settings save automatically.</span> Your cards auto-save to the <code>data</code> folder, with daily backups.</p>
+
+    </section>
+  </main>
+</div>
+<script src="pet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

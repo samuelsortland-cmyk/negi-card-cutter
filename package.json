@@ -1,0 +1,13 @@
+{
+  "name": "negi-card-cutter",
+  "version": "1.4.0",
+  "description": "An animated pixel-art AI that cuts and verifies Public Forum debate cards using your Claude Code login (no API key).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

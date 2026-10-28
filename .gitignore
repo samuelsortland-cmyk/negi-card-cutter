@@ -1,0 +1,6 @@
+config.json
+data/
+.claude-work/
+node_modules/
+negi-*.zip
+*.tmp

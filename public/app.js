@@ -1,0 +1,306 @@
+// Negi app: Claude connection, the cutting job stream, card rendering and copy-paste.
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const pet = (window.__pet = new Pet($('pet')));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('negi:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('negi:' + k, JSON.stringify(v)); } catch {} },
+  };
+
+  // ------------------------------------------------------------ auto-save
+  // Cards and the cut form save to the data folder on your computer as you work (and to this browser as a backup).
+  let cardsCache = store.get('cards', []);
+  const getCards = () => cardsCache.slice();
+  const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  const pushCards = debounce(() => fetch('/api/cards', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cardsCache) })
+    .then(() => flashSaved()).catch(() => {}), 300);
+  function saveCards(list) { cardsCache = list; store.set('cards', list); pushCards(); }
+  function flashSaved() { const el = $('autosave'); if (!el) return; el.textContent = '✓ Saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  fetch('/api/cards').then((r) => r.json()).then((server) => {
+    if (Array.isArray(server)) { cardsCache = server; store.set('cards', server); }
+    else if (cardsCache.length) pushCards(); // first run: move cards from this browser to disk
+    renderCards();
+  }).catch(() => {});
+
+  const DRAFT_FIELDS = ['side', 'count', 'length', 'argument', 'url', 'selection', 'notes'];
+  const saveDraft = debounce(() => {
+    const d = {}; for (const k of DRAFT_FIELDS) d[k] = $(k).value;
+    fetch('/api/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).then(flashSaved).catch(() => {});
+  }, 600);
+  const draftReady = fetch('/api/draft').then((r) => r.json()).then((d) => {
+    for (const k of DRAFT_FIELDS) if (d && d[k] != null && $(k).value === $(k).defaultValue) $(k).value = d[k];
+  }).catch(() => {});
+  for (const k of DRAFT_FIELDS) $(k).addEventListener('input', saveDraft);
+
+  // ------------------------------------------------------------ speech bubble
+  let typer;
+  function say(text, state) {
+    if (state) pet.setState(state);
+    if (!text) return;
+    clearInterval(typer);
+    const el = $('bubble'); el.textContent = ''; let i = 0;
+    pet.talk(Math.min(text.length * 28, 4000));
+    typer = setInterval(() => { el.textContent = text.slice(0, ++i); if (i >= text.length) clearInterval(typer); }, 22);
+  }
+  setInterval(() => { // settle back to idle after a while
+    if (!busy && pet.state !== 'idle' && performance.now() - pet.since > 8000) pet.setState('idle');
+  }, 4000);
+
+  // ------------------------------------------------------------ settings
+  let config = {};
+  fetch('/api/config').then((r) => r.json()).then((c) => {
+    config = c;
+    $('topic').value = c.topic; $('initials').value = c.initials; $('model').value = c.model ?? 'sonnet'; $('deepCheck').checked = c.deepCheck !== false; $('autoUpdate').checked = c.autoUpdate !== false;
+    for (const k of FMT_KEYS) $(k).value = c[k];
+    renderCards(); renderPreview();
+  });
+  const FMT_KEYS = ['hlColor', 'font', 'tagPt', 'readPt', 'smallPt'];
+  function settingsFromForm() {
+    const o = { initials: $('initials').value.trim(), model: $('model').value, deepCheck: $('deepCheck').checked, topic: $('topic').value.trim(), autoUpdate: $('autoUpdate').checked };
+    for (const k of FMT_KEYS) o[k] = /Pt$/.test(k) ? Math.max(4, Math.min(24, parseFloat($(k).value) || 0)) : $(k).value;
+    return o;
+  }
+  // Settings save themselves a moment after you change them.
+  const saveSettings = debounce(async () => {
+    config = await (await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settingsFromForm()) })).json();
+    $('settingsSaved').textContent = '✓ Settings saved';
+    flashSaved();
+  }, 500);
+  for (const k of [...FMT_KEYS, 'initials', 'model', 'deepCheck', 'topic', 'autoUpdate']) {
+    $(k).addEventListener('input', () => { Object.assign(config, settingsFromForm()); renderPreview(); renderCards(); $('settingsSaved').textContent = 'Saving…'; saveSettings(); });
+  }
+  // ------------------------------------------------------------ Claude connection
+  const post = (p, body) => fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+  function showConn(st) {
+    const view = !st ? null : st.loggedIn ? 'connOk' : !st.installed ? 'connInstall' : 'connLogin';
+    for (const id of ['connInstall', 'connLogin', 'connOk']) $(id).hidden = id !== view;
+    const badge = $('connBadge');
+    badge.className = 'badge ' + (!st ? 'review' : st.loggedIn ? 'verified' : 'fail');
+    badge.textContent = !st ? 'Checking…' : st.loggedIn ? '✔ Connected' : !st.installed ? '✘ Claude Code not installed' : '✘ Not connected';
+    $('disconnectBtn').hidden = !st?.hasToken;
+    $('connectPanel').classList.toggle('done', !!st?.loggedIn);
+  }
+  function connMsg(text, cls = '') { $('connMsg').className = 'status ' + cls; $('connMsg').textContent = text; }
+  async function checkClaude() {
+    showConn(null); connMsg('');
+    try {
+      const st = await (await fetch('/api/status')).json();
+      showConn(st);
+      if (st.loggedIn) say('Connected to Claude! Ready to cut ✂️', 'happy');
+      else say(st.installed ? 'Connect me to Claude first! Click the buttons up top 🔌' : 'I need Claude Code installed first! 🔌', 'worried');
+    } catch { connMsg("Can't reach Negi's server. Is the start.bat window still open?", 'bad'); }
+  }
+  async function saveToken(token) {
+    connMsg('Saving and testing your code…', 'muted');
+    const r = await post('/api/token', { token });
+    if (r.ok && r.loggedIn) { $('tokenInput').value = ''; connMsg(''); showConn(r); say('Yay, we\'re connected! 🎉', 'happy'); }
+    else connMsg('✘ ' + (r.error || 'That code did not work.'), 'bad');
+  }
+  $('installBtn').onclick = async () => { const r = await post('/api/connect', { action: 'install' }); connMsg(r.ok ? 'An install window opened. When it says "added 1 package" (or similar), close it and click Check again.' : 'Could not open a window. Open Command Prompt and run: npm install -g @anthropic-ai/claude-code', r.ok ? 'muted' : 'bad'); };
+  $('loginBtn').onclick = async () => { const r = await post('/api/connect', { action: 'login' }); connMsg(r.ok ? 'Window opened! Sign in in your browser, copy the sk-ant- code from the black window, then click "2. Paste code".' : 'Could not open a window. Open Command Prompt and run: claude setup-token', r.ok ? 'muted' : 'bad'); };
+  $('pasteBtn').onclick = async () => {
+    try { const t = await navigator.clipboard.readText(); if (!t.trim()) return connMsg('Your clipboard is empty. Copy the code from the black window first.', 'bad'); saveToken(t); }
+    catch { connMsg('Your browser blocked clipboard access. Paste into the box with Ctrl+V and press Save.', 'bad'); $('tokenInput').focus(); }
+  };
+  $('saveToken').onclick = () => saveToken($('tokenInput').value);
+  $('tokenInput').onkeydown = (e) => { if (e.key === 'Enter') saveToken($('tokenInput').value); };
+  $('disconnectBtn').onclick = async () => { await post('/api/token', { token: '' }); checkClaude(); };
+  document.querySelectorAll('.recheck').forEach((b) => (b.onclick = checkClaude));
+  checkClaude();
+  // Sends the article text from YOUR browser (works on paywalled pages you're logged into).
+  $('bookmarklet').href = 'javascript:' + encodeURIComponent(`(()=>{const q=n=>{const e=document.querySelector('meta[name="'+n+'"],meta[property="'+n+'"]');return e?e.content:''};`
+    + `const a=document.querySelector('article,main,[role=main]')||document.body;`
+    + `const m={author:q('author')||q('article:author')||q('parsely-author'),published:q('article:published_time')||q('parsely-pub-date')||((document.querySelector('time[datetime]')||{}).dateTime||''),title:q('og:title')||document.title,siteName:q('og:site_name')};`
+    + `const f=document.createElement('form');f.method='POST';f.action='${location.origin}/inbox';f.target='_blank';`
+    + `const add=(k,v)=>{const i=document.createElement('textarea');i.name=k;i.value=v;f.appendChild(i)};`
+    + `add('url',location.href);add('title',document.title);add('sel',String(getSelection()));add('meta',JSON.stringify(m));`
+    + `add('text',(document.body.innerText.length>a.innerText.length*3&&a!==document.body?a:document.body).innerText);`
+    + `f.style.display='none';document.body.appendChild(f);f.submit();f.remove()})()`);
+  $('bookmarklet').onclick = (e) => { e.preventDefault(); say('Drag me to your bookmarks bar, then click me on an article!'); };
+
+  const qs = new URLSearchParams(location.search);
+  let inboxId = '';
+  if (qs.get('inbox')) {
+    fetch('/api/inbox/' + qs.get('inbox')).then((r) => r.ok ? r.json() : null).then(async (it) => {
+      if (!it) return;
+      await draftReady;
+      inboxId = qs.get('inbox');
+      $('url').value = it.url;
+      if (it.sel) { $('selection').value = it.sel; $('selection').closest('details').open = true; }
+      $('inboxNote').hidden = false;
+      $('inboxNote').textContent = `📥 Got "${it.title || it.url}" from your browser (${it.chars.toLocaleString()} characters). Type what it should prove, then hit Cut.`;
+      say('Ooh, you brought me a page from your browser! What should it prove? ✂️', 'happy');
+    });
+    history.replaceState(null, '', '/');
+  }
+  $('url').addEventListener('input', () => { inboxId = ''; $('inboxNote').hidden = true; });
+  if (qs.get('url')) {
+    $('url').value = qs.get('url');
+    if (qs.get('sel')) { $('selection').value = qs.get('sel'); $('selection').closest('details').open = true; }
+    setTimeout(() => say('Ooh, you brought me a page! Tell me what it should prove, then hit Cut ✂️', 'happy'), 300);
+    history.replaceState(null, '', '/');
+  }
+
+  // ------------------------------------------------------------ jobs
+  let busy = false, ctrl = null;
+  function log(text, cls) {
+    const d = document.createElement('div'); d.textContent = text; if (cls) d.className = cls;
+    $('log').appendChild(d); $('log').scrollTop = 1e9;
+  }
+  async function stream(path, body, onMsg) {
+    ctrl = new AbortController();
+    const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
+    const rd = res.body.getReader(), dec = new TextDecoder(); let buf = '';
+    for (;;) {
+      const { value, done } = await rd.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl; while ((nl = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, nl); buf = buf.slice(nl + 1); if (line.trim()) onMsg(JSON.parse(line)); }
+    }
+  }
+  function handle(m) {
+    if (m.type === 'state') say(m.say, m.state);
+    else if (m.type === 'log') log((m.kind === 'search' ? '🔍 ' : m.kind === 'read' ? '📖 ' : m.kind === 'browser' ? '🌐 ' : m.kind === 'warn' ? '⚠️ ' : '• ') + m.text, m.kind === 'warn' ? 'warn' : '');
+    else if (m.type === 'error') log('❌ ' + m.message, 'error');
+    else if (m.type === 'cards') {
+      const lib = getCards(); lib.unshift(...m.cards); saveCards(lib);
+      renderCards();
+      log(`✅ ${m.cards.length} card(s) added below.`);
+    } else if (m.type === 'answer') $('askA').textContent = m.text;
+  }
+  function setBusy(b) { busy = b; $('cutBtn').disabled = b; $('askBtn').disabled = b; $('stopBtn').hidden = !b; }
+
+  $('cutBtn').onclick = async () => {
+    const job = { topic: $('topic').value.trim(), side: $('side').value, count: $('count').value, argument: $('argument').value.trim(),
+      url: $('url').value.trim(), selection: $('selection').value.trim(), notes: $('notes').value.trim(), length: $('length').value, inboxId };
+    if (!job.argument && !job.url) return say('Tell me what the card should prove (or give me a URL)! 🥺', 'worried');
+    $('log').innerHTML = ''; setBusy(true);
+    try { await stream('/api/cut', job, handle); }
+    catch (e) { if (e.name !== 'AbortError') { log('❌ ' + e.message, 'error'); say('I lost connection to my server 😢 Is it running?', 'sad'); } }
+    setBusy(false);
+  };
+  $('stopBtn').onclick = () => { ctrl?.abort(); say('Okay, stopping! ✋', 'idle'); setBusy(false); };
+  $('askBtn').onclick = async () => {
+    const q = $('askQ').value.trim(); if (!q) return;
+    $('askA').textContent = '…'; setBusy(true);
+    try { await stream('/api/ask', { question: q, web: $('askWeb').checked }, handle); } catch (e) { $('askA').textContent = e.message; }
+    setBusy(false);
+  };
+
+  // ------------------------------------------------------------ card rendering
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // Card styles come from Settings > Card formatting.
+  const FALLBACK = { Calibri: 'Carlito,sans-serif', Arial: 'Helvetica,sans-serif', Helvetica: 'Arial,sans-serif', Verdana: 'sans-serif', 'Times New Roman': 'Times,serif', Cambria: 'Georgia,serif', Georgia: 'serif', Garamond: 'Georgia,serif' };
+  const fmt = () => {
+    const f = config.font || 'Calibri';
+    return { FONT: `font-family:'${f}',${FALLBACK[f] || 'sans-serif'};`, tag: config.tagPt || 13, read: config.readPt || 11, small: config.smallPt || 8, hl: config.hlColor || '#00FF00' };
+  };
+
+  function markupToHtml(src) {
+    const { FONT, read, small, hl } = fmt();
+    const S = { unread: `font-size:${small}pt;`, read: `font-size:${read}pt;text-decoration:underline;`, hl: `background:${hl};`, b: 'font-weight:bold;' };
+    let u = 0, h = 0, b = 0, out = '';
+    for (const part of String(src).split(/(<\/?[uhb]>)/i)) {
+      const m = part.match(/^<(\/?)([uhb])>$/i);
+      if (m) { const d = m[1] ? -1 : 1, k = m[2].toLowerCase(); if (k === 'u') u = Math.max(0, u + d); if (k === 'h') h = Math.max(0, h + d); if (k === 'b') b = Math.max(0, b + d); continue; }
+      if (!part) continue;
+      const style = FONT + (u || h ? S.read : S.unread) + (h ? S.hl : '') + (b ? S.b : '');
+      out += `<span style="${style}">${esc(part)}</span>`;
+    }
+    return out;
+  }
+  function tagHtml(tag) {
+    return String(tag).split(/(<\/?u>|<\/?b>)/i).reduce((acc, part) => {
+      if (/^<u>$/i.test(part)) acc.u = 1; else if (/^<\/u>$/i.test(part)) acc.u = 0;
+      else if (!/^<\/?b>$/i.test(part) && part) acc.html += acc.u ? `<u>${esc(part)}</u>` : esc(part);
+      return acc;
+    }, { u: 0, html: '' }).html;
+  }
+  function yy(date) { const m = String(date).match(/(\d{4})\s*$/) || String(date).match(/(\d{4})/); return m ? m[1].slice(2) : 'ND'; }
+  function cardHtml(c) {
+    const ci = c.cite, ini = config.initials ? ` //${esc(config.initials)}` : '';
+    const { FONT, tag, read } = fmt();
+    const bracket = [ci.authorFull, ci.credentials, ci.date, ci.title, ci.publication, ci.url].filter(Boolean).map(esc).join(', ');
+    return `<p style="margin:0 0 4pt;${FONT}font-size:${tag}pt;font-weight:bold;">${tagHtml(c.tag)}</p>`
+      + `<p style="margin:0 0 6pt;${FONT}"><span style="font-size:${tag}pt;font-weight:bold;">${esc(ci.authorLast)} ${yy(ci.date)}</span> <span style="font-size:${read}pt;">[${bracket}${ini}]</span></p>`
+      + c.paragraphs.map((p) => `<p style="margin:0 0 6pt;${FONT}">${markupToHtml(p)}</p>`).join('');
+  }
+  function plain(c) {
+    const ci = c.cite;
+    return `${c.tag.replace(/<[^>]+>/g, '')}\n${ci.authorLast} ${yy(ci.date)} [${[ci.authorFull, ci.credentials, ci.date, ci.title, ci.publication, ci.url].filter(Boolean).join(', ')}${config.initials ? ' //' + config.initials : ''}]\n${c.paragraphs.map((p) => p.replace(/<[^>]+>/g, '')).join('\n')}`;
+  }
+  async function copyRich(html, text) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })]);
+    } catch { // fallback: copy a rendered selection
+      const d = document.createElement('div'); d.innerHTML = html; d.style.cssText = 'position:fixed;left:-9999px;background:#fff'; document.body.appendChild(d);
+      const r = document.createRange(); r.selectNodeContents(d); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      document.execCommand('copy'); sel.removeAllRanges(); d.remove();
+    }
+  }
+
+  function checksHtml(c) {
+    const ch = c.check || {};
+    const mark = (x) => x === true ? '<span class="ok">✔</span>' : x === false ? '<span class="bad">✘</span>' : '<span class="unk">?</span>';
+    const items = (ch.items || []).map((it) => `<span title="${esc(it.note)}">${mark(it.state)} ${esc(it.label)}</span>`);
+    const extra = [...(ch.fixes || []).map((f) => `🔧 Auto-fixed ${f}`), ...(ch.notes || []).map((n) => `ℹ️ ${n}`),
+      ...(ch.items || []).filter((it) => it.note && it.state !== true).map((it) => `${it.state === false ? '❌' : '⚠️'} ${it.label}: ${it.note}`)];
+    return `<div>${items.join(' &nbsp; ')}</div>${extra.length ? `<ul>${extra.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`;
+  }
+
+  const SAMPLE = { tag: 'European TPNW ratification <u>forces B61s out</u> and <u>guts extended deterrence</u>.', cite: { authorLast: 'Ellison', authorFull: 'Jordan Ellison', credentials: 'Senior Fellow for Nuclear Policy', date: '09-14-2026', title: 'Why the Ban Treaty and NATO Cannot Coexist', publication: 'Example Review', url: 'https://example.org/article' },
+    paragraphs: ['The consequences would extend well beyond the four host nations. <u>Nuclear sharing exists precisely to <h>show Moscow</h> that <h>an attack on any ally risks a response</h> that <h>Russia <b>cannot control</b></h>.</u>'] };
+  function renderPreview() { $('fmtPreview').innerHTML = cardHtml(SAMPLE); }
+
+  function renderCards() {
+    const lib = getCards(), box = $('cards');
+    if (!lib.length) { box.innerHTML = '<div class="empty">No cards yet. Negi is waiting with her highlighter 🥬</div>'; return; }
+    box.innerHTML = '';
+    lib.forEach((c, i) => {
+      const st = c.check?.status || 'review';
+      const label = { verified: '✔ VERIFIED', review: '⚠ REVIEW', fail: '✘ FAILED CHECK' }[st];
+      const w = document.createElement('div'); w.className = 'card-wrap';
+      w.innerHTML = `<div class="card-bar"><span class="badge ${st}">${label}</span>${c.side ? `<b>${esc(c.side)}</b>` : ''}<span class="sp"></span>
+        <button class="pix small" data-a="copy">Copy card</button><button class="pix small" data-a="open">Open source</button><button class="pix small ghost" data-a="del">✕</button></div>
+        <details class="checks" ${st !== 'verified' ? 'open' : ''}><summary>Double-check report</summary>${checksHtml(c)}</details>
+        <div class="card">${cardHtml(c)}</div>`;
+      w.querySelector('[data-a=copy]').onclick = async () => { await copyRich(cardHtml(c), plain(c)); say(st === 'fail' ? 'Copied, but please fix the flagged issues first! 💦' : 'Copied! Paste it in your doc ✨', st === 'fail' ? 'worried' : 'happy'); };
+      w.querySelector('[data-a=open]').onclick = () => fetch('/api/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: c.cite.url }) });
+      w.querySelector('[data-a=del]').onclick = () => { const l = getCards(); l.splice(i, 1); saveCards(l); renderCards(); };
+      box.appendChild(w);
+    });
+  }
+  const allHtml = () => getCards().map(cardHtml).join('<p>&nbsp;</p>');
+  $('copyAll').onclick = async () => { const lib = getCards(); if (!lib.length) return; await copyRich(allHtml(), lib.map(plain).join('\n\n')); say(`Copied all ${lib.length} cards! 📋`, 'happy'); };
+  $('downloadDoc').onclick = () => {
+    const blob = new Blob([`<html><head><meta charset="utf-8"></head><body>${allHtml()}</body></html>`], { type: 'application/msword' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'negi-cards.doc'; a.click();
+  };
+  $('clearAll').onclick = () => { if (confirm('Delete all saved cards?')) { saveCards([]); renderCards(); } };
+
+  // ------------------------------------------------------------ updates
+  function showUpdate(st) {
+    $('versionLine').textContent = `Negi ${st.current}` + (st.checkedAt ? ` · checked ${new Date(st.checkedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '')
+      + (st.error ? ` · ${st.error}` : st.available ? '' : ' · up to date');
+    $('updateBanner').hidden = !st.available;
+    if (st.available) $('updateText').textContent = `Negi ${st.latest} is ready to install.${st.notes ? ' New: ' + st.notes : ''}`;
+  }
+  async function checkUpdates(force) {
+    try { showUpdate(await (await fetch('/api/update' + (force ? '?check' : ''))).json()); } catch {}
+  }
+  async function installUpdate() {
+    $('updateNow').disabled = true; $('updateText').textContent = 'Downloading the update…';
+    const r = await (await fetch('/api/update', { method: 'POST' })).json().catch(() => ({ ok: false, error: 'Lost connection' }));
+    if (!r.ok) { $('updateNow').disabled = false; $('updateText').textContent = '✘ ' + r.error; return; }
+    $('updateText').textContent = `Installed ${r.version}. Restarting Negi…`;
+    say('Getting an upgrade! Be right back~ ✨', 'happy');
+    const wait = async () => { try { await fetch('/api/config', { cache: 'no-store' }); location.reload(); } catch { setTimeout(wait, 1000); } };
+    setTimeout(wait, 2500);
+  }
+  $('updateNow').onclick = installUpdate;
+  $('updateLater').onclick = () => { $('updateBanner').hidden = true; };
+  $('checkUpdates').onclick = () => { $('versionLine').textContent = 'Checking…'; checkUpdates(true); };
+  checkUpdates(false);
+  fetch('/api/version').then((r) => r.json()).then((v) => { $('petVersion').textContent = `Negi v${v.version}`; }).catch(() => {});
+  setTimeout(() => checkUpdates(false), 20000); // the server checks ~15s after starting
+  setInterval(() => checkUpdates(false), 30 * 60e3);
+})();
