@@ -363,7 +363,7 @@
   // ------------------------------------------------------------ prep writer
   const KIND_TEXT = {
     frontline: { ours: 'Your argument they\'re responding to', oursPh: 'e.g. Extended deterrence: TPNW ratification forces the B61s out, which tells Moscow NATO won\'t escalate', theirs: 'Their responses (one per line)', theirsPh: 'e.g. Deterrence is conventional now, nukes don\'t matter\nThe B61s are militarily useless\nRussia is already deterred by France and the UK' },
-    extension: { ours: 'Arguments to extend (one per line, "Name: what it says")', oursPh: 'e.g. Deterrence: removing B61s ends nuclear sharing, Russia reads that as weakness and probes the Baltics, that escalates to nuclear war', theirs: '', theirsPh: '' },
+    extension: { ours: 'Arguments to extend (one per line, "Name: what it says"). Each becomes 3 sentences: uniqueness, link, impact', oursPh: 'e.g. Deterrence: removing B61s ends nuclear sharing, Russia reads that as weakness and probes the Baltics, that escalates to nuclear war', theirs: '', theirsPh: '' },
     weighing: { ours: 'Your impacts (one per line, "Name: what it says")', oursPh: 'e.g. Nuclear war: Russian probing in the Baltics escalates, millions die', theirs: 'Their impacts to weigh against (optional, one per line)', theirsPh: 'e.g. Humanitarian: nuclear stigma lowers the chance of use' },
     ballot: { ours: 'Your best arguments (one per line)', oursPh: 'e.g. Deterrence: B61s leaving collapses Article 5 credibility', theirs: 'Their best arguments (optional, one per line)', theirsPh: 'e.g. Norms: ratifying stigmatizes nukes' },
   };
@@ -409,8 +409,9 @@
     for (const s of d.sections || []) {
       html += `<p style="margin:10pt 0 4pt;${FONT}font-size:${tag}pt;font-weight:bold;text-decoration:underline;">${esc(s.heading)}</p>`;
       if (s.lead) html += P('', esc(s.lead));
+      if (s.style === 'para') html += P('', (s.items || []).map((it) => esc(it.text)).join(' ')); // one paragraph, like your extensions
       (s.items || []).forEach((it, i) => {
-        if (s.style === 'para') html += P('', esc(it.text));
+        if (s.style === 'para') return;
         else if (s.style === 'lettered') html += P('margin-left:36pt;text-indent:-24pt;', `(${String.fromCharCode(97 + i)})&nbsp;&nbsp;- ${it.label ? esc(it.label) + ': ' : ''}${esc(it.text)}`);
         else if (s.style === 'tags') html += P('font-weight:bold;', esc(it.text));
         else html += P('margin-left:30pt;text-indent:-14pt;', `●&nbsp;&nbsp;${it.label ? `<b>${esc(it.label)}</b>: ` : ''}${esc(it.text)}`);
@@ -419,7 +420,7 @@
     }
     return html;
   }
-  const prepPlain = (d) => (d.sections || []).map((s) => [s.heading, s.lead, ...(s.items || []).map((it, i) => (s.style === 'lettered' ? `(${String.fromCharCode(97 + i)}) - ` : s.style === 'para' ? '' : '• ') + (it.label ? it.label + ': ' : '') + it.text)].filter(Boolean).join('\n')).join('\n\n');
+  const prepPlain = (d) => (d.sections || []).map((s) => s.style === 'para' ? [s.heading, (s.items || []).map((it) => it.text).join(' ')].join('\n') : [s.heading, s.lead, ...(s.items || []).map((it, i) => (s.style === 'lettered' ? `(${String.fromCharCode(97 + i)}) - ` : s.style === 'para' ? '' : '• ') + (it.label ? it.label + ': ' : '') + it.text)].filter(Boolean).join('\n')).join('\n\n');
 
   let prepCache = store.get('prepdocs', []);
   const pushPrep = debounce(() => fetch('/api/prepdocs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prepCache) }).then(flashSaved).catch(() => {}), 300);
@@ -439,7 +440,7 @@
         (ck.slop || []).length ? `⚠️ Still contains: ${ck.slop.join(', ')}. Reword before reading it.` : '',
         (ck.unknownAuthors || []).length ? `⚠️ Mentions ${ck.unknownAuthors.join(', ')}, which isn't one of your cards. Check it or swap in your own card.` : '',
         /\[(stat|card)\]/.test(prepPlain(d)) ? 'ℹ️ Fill in the [stat] / [card] blanks from your evidence.' : '',
-        (ck.longParts || []).length ? `ℹ️ Runs a little long: ${ck.longParts.join('; ')}. Trim it if you're short on time.` : '',
+        (ck.longParts || []).length ? `ℹ️ ${ck.longParts.join('; ')}. Trim or split it before reading.` : '',
       ].filter(Boolean);
       w.innerHTML = `<div class="card-bar"><span class="badge ${warn ? 'review' : 'verified'}">${warn ? '⚠ CHECK' : '✔ SOUNDS LIKE YOU'}</span><b>${esc(d.side || '')}</b><span class="chip">${esc(KIND_NAME[d.kind] || d.kind)}</span><span class="sp"></span>
         <button class="pix small" data-a="copy">Copy</button><button class="pix small ghost" data-a="del">✕</button></div>

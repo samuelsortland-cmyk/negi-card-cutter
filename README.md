@@ -50,7 +50,7 @@ Before you get a card, Negi counts the highlighted words and checks that they re
 ## Prep writer
 In the **📝 Prep writer** panel, Negi writes four kinds of prep in the same format and voice as your own prep docs:
 - **Frontlines:** give your argument and their responses (one per line). For each response you get 2–3 answers (no link, non-unique, turn, mitigation, or "they misread our case") as "FL:" bullets. Tick **cut a fresh card for each response** and she also cuts a rebuttal card for every response (up to 4) and puts it under the answers.
-- **Extensions:** one "Extend: X" paragraph per argument that walks the link chain to the impact. Summary versions are 3–5 sentences, final focus versions 2–3.
+- **Extensions:** one "Extend: X" paragraph per argument, always exactly **3 sentences**: **uniqueness** (the status quo now), **link** (what changes), and **impact** (what it leads to). The voice check enforces this.
 - **Weighing:** "Weighing: X" templates with (a)/(b) lines like "- Timeframe + Probability: … This outweighs because […]". Pick the mechanisms or let her choose. Tick **Fill in** to have her write the comparison against their impacts.
 - **Ballot directives:** the first-look line, if-then lines, why to prefer your weighing, what they dropped, and a closing vote line.
 
