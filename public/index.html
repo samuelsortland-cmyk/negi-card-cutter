@@ -178,6 +178,63 @@
       <div id="cards"></div>
     </section>
 
+    <section class="panel" id="prepPanel">
+      <h2>📝 Prep writer</h2>
+      <div class="seg" role="radiogroup" aria-label="What to write">
+        <button type="button" class="seg-btn prep-kind" data-kind="frontline" role="radio">Frontlines <small>answers to their responses</small></button>
+        <button type="button" class="seg-btn prep-kind" data-kind="extension" role="radio">Extensions <small>summary / final focus</small></button>
+        <button type="button" class="seg-btn prep-kind" data-kind="weighing" role="radio">Weighing <small>templates per impact</small></button>
+        <button type="button" class="seg-btn prep-kind" data-kind="ballot" role="radio">Ballot directives <small>how the judge votes</small></button>
+      </div>
+      <input type="hidden" id="prepKind" value="frontline">
+      <div class="row">
+        <label>Side
+          <select id="prepSide"><option value="Pro">Pro (Aff)</option><option value="Con">Con (Neg)</option></select>
+        </label>
+        <label class="kind-opt" data-for="extension ballot">Speech
+          <select id="prepSpeech"><option value="summary">Summary</option><option value="ff">Final focus</option></select>
+        </label>
+      </div>
+      <label><span id="oursLabel">Your argument</span>
+        <textarea id="prepOurs" rows="3"></textarea>
+      </label>
+      <label id="theirsWrap"><span id="theirsLabel">Their responses (one per line)</span>
+        <textarea id="prepTheirs" rows="3"></textarea>
+      </label>
+      <div class="kind-opt" data-for="weighing">
+        <div class="mech-row" id="mechs">
+          <span class="muted">Mechanisms (leave all off and Negi picks the best two):</span>
+          <label class="chk"><input type="checkbox" value="magnitude"> Magnitude</label>
+          <label class="chk"><input type="checkbox" value="scope"> Scope</label>
+          <label class="chk"><input type="checkbox" value="timeframe"> Timeframe</label>
+          <label class="chk"><input type="checkbox" value="probability"> Probability</label>
+          <label class="chk"><input type="checkbox" value="reversibility"> Reversibility</label>
+          <label class="chk"><input type="checkbox" value="link"> Strength of link</label>
+          <label class="chk"><input type="checkbox" value="prereq"> Prerequisite</label>
+          <label class="chk"><input type="checkbox" value="shortcircuit"> Short-circuit</label>
+        </div>
+        <label class="chk"><input type="checkbox" id="prepFill"> Fill in "This outweighs because …" against their impacts (otherwise it stays as […] for you to fill in round)</label>
+      </div>
+      <label class="kind-opt" data-for="ballot">Framing to push <span class="muted">(optional)</span>
+        <input id="prepFrame" type="text" placeholder="e.g. probability first: their nuclear war impact needs five steps to happen">
+      </label>
+      <label class="chk kind-opt" data-for="frontline"><input type="checkbox" id="prepCut"> Also cut a fresh card for each response (up to 4, uses more credits)</label>
+      <details class="card-pick">
+        <summary>Use my saved cards <span id="pickCount" class="muted"></span></summary>
+        <p class="muted">Negi only names authors from cards you tick here, so nothing gets made up.</p>
+        <div id="cardPick"></div>
+      </details>
+      <div class="actions">
+        <button id="prepBtn" class="pix big">Write it, Negi! ✍️</button>
+      </div>
+      <div id="prepLog" class="log" aria-live="polite"></div>
+      <div class="cards-head prep-head">
+        <h3 class="sub">Your prep</h3>
+        <div><button id="prepCopyAll" class="pix small">Copy all</button> <button id="prepClear" class="pix small ghost">Clear</button></div>
+      </div>
+      <div id="prepDocs"></div>
+    </section>
+
     <section class="panel">
       <h2>⚙️ Settings</h2>
       <div class="row">

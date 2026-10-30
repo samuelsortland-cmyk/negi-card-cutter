@@ -47,6 +47,17 @@ Pick **Speech** at the top of the cut form:
 ### Reading-length check
 Before you get a card, Negi counts the highlighted words and checks that they read smoothly, without strings of 1–2 word fragments. If a card is too long, too short or choppy, she re-highlights just that card once, automatically. Each card shows its read time (🕒 ~11s read), and the double-check report includes **Reading length** and **Reads smoothly**.
 
+## Prep writer
+In the **📝 Prep writer** panel, Negi writes four kinds of prep in the same format and voice as your own prep docs:
+- **Frontlines:** give your argument and their responses (one per line). For each response you get 2–3 answers (no link, non-unique, turn, mitigation, or "they misread our case") as "FL:" bullets. Tick **cut a fresh card for each response** and she also cuts a rebuttal card for every response (up to 4) and puts it under the answers.
+- **Extensions:** one "Extend: X" paragraph per argument that walks the link chain to the impact. Summary versions are 3–5 sentences, final focus versions 2–3.
+- **Weighing:** "Weighing: X" templates with (a)/(b) lines like "- Timeframe + Probability: … This outweighs because […]". Pick the mechanisms or let her choose. Tick **Fill in** to have her write the comparison against their impacts.
+- **Ballot directives:** the first-look line, if-then lines, why to prefer your weighing, what they dropped, and a closing vote line.
+
+**Using your cards:** open **Use my saved cards** and tick the ones to draw from. Negi only names authors from cards you tick, and anything she'd need but doesn't have stays as a [stat] or [card] blank.
+
+**Voice check:** every result is checked for AI-sounding phrases ("moreover", "crucial", "delve" and similar), notes to herself, card names that aren't in your cards, and extensions that run long. If any of those turn up, she rewrites it once automatically. Each result shows **✔ SOUNDS LIKE YOU** or a note on what to check. Your prep auto-saves with daily backups, like your cards.
+
 ## Choosing how recent the evidence is
 Use **Published** in the cut form: *2026 only*, *2025 only*, *2025 or newer*, *2024 or newer*, *Last 6 months*, *Last 12 months* (the default), *Any time*, or **Custom years** (for example 2023 to 2026).
 - Searches look only in that range.

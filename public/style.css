@@ -139,3 +139,11 @@ h3.sub { font-size: 15px; margin: 18px 0 4px; }
 .seg-btn:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
 .rebuttal-box { border: 2px dashed var(--pink); border-radius: 10px; padding: 4px 12px; margin: 8px 0; }
 .chip { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--panel); border: 2px solid var(--line); }
+
+.mech-row { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin: 8px 0; }
+.mech-row .chk { margin: 0; }
+.card-pick { margin: 8px 0; }
+#cardPick { max-height: 220px; overflow: auto; border: 2px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+#cardPick .chk { font-size: 13px; margin: 4px 0; }
+.prep-head { margin-top: 14px; }
+.prep-doc .card { padding: 14px 18px; }

@@ -219,7 +219,7 @@
       log(`✅ ${m.cards.length} card(s) added below.`);
     } else if (m.type === 'answer') $('askA').textContent = m.text;
   }
-  function setBusy(b) { busy = b; $('cutBtn').disabled = b; $('askBtn').disabled = b; $('stopBtn').hidden = !b; }
+  function setBusy(b) { busy = b; $('cutBtn').disabled = b; $('askBtn').disabled = b; $('prepBtn').disabled = b; $('stopBtn').hidden = !b; }
 
   $('cutBtn').onclick = async () => {
     const job = { topic: $('topic').value.trim(), side: $('side').value, count: $('count').value, argument: $('argument').value.trim(),
@@ -307,6 +307,7 @@
   function renderPreview() {} // the cards themselves (or the sample below) show the format live
 
   function renderCards() {
+    renderPick(); // keep the prep writer's card list in sync
     const lib = getCards(), box = $('cards');
     if (!lib.length) { box.innerHTML = `<div class="empty">No cards yet. Here's how yours will look:</div><div class="card-wrap"><div class="card">${cardHtml(SAMPLE)}</div></div>`; return; }
     box.innerHTML = '';
@@ -358,4 +359,120 @@
   fetch('/api/version').then((r) => r.json()).then((v) => { $('petVersion').textContent = `Negi v${v.version}`; }).catch(() => {});
   setTimeout(() => checkUpdates(false), 20000); // the server checks ~15s after starting
   setInterval(() => checkUpdates(false), 30 * 60e3);
+
+  // ------------------------------------------------------------ prep writer
+  const KIND_TEXT = {
+    frontline: { ours: 'Your argument they\'re responding to', oursPh: 'e.g. Extended deterrence: TPNW ratification forces the B61s out, which tells Moscow NATO won\'t escalate', theirs: 'Their responses (one per line)', theirsPh: 'e.g. Deterrence is conventional now, nukes don\'t matter\nThe B61s are militarily useless\nRussia is already deterred by France and the UK' },
+    extension: { ours: 'Arguments to extend (one per line, "Name: what it says")', oursPh: 'e.g. Deterrence: removing B61s ends nuclear sharing, Russia reads that as weakness and probes the Baltics, that escalates to nuclear war', theirs: '', theirsPh: '' },
+    weighing: { ours: 'Your impacts (one per line, "Name: what it says")', oursPh: 'e.g. Nuclear war: Russian probing in the Baltics escalates, millions die', theirs: 'Their impacts to weigh against (optional, one per line)', theirsPh: 'e.g. Humanitarian: nuclear stigma lowers the chance of use' },
+    ballot: { ours: 'Your best arguments (one per line)', oursPh: 'e.g. Deterrence: B61s leaving collapses Article 5 credibility', theirs: 'Their best arguments (optional, one per line)', theirsPh: 'e.g. Norms: ratifying stigmatizes nukes' },
+  };
+  const PREP_FIELDS = ['prepKind', 'prepSide', 'prepSpeech', 'prepOurs', 'prepTheirs', 'prepFrame'];
+  function showKind() {
+    const k = $('prepKind').value, t = KIND_TEXT[k];
+    document.querySelectorAll('.prep-kind').forEach((b) => b.setAttribute('aria-checked', b.dataset.kind === k));
+    document.querySelectorAll('.kind-opt').forEach((el) => { el.hidden = !el.dataset.for.split(' ').includes(k); });
+    $('oursLabel').textContent = t.ours; $('prepOurs').placeholder = t.oursPh;
+    $('theirsWrap').hidden = !t.theirs; $('theirsLabel').textContent = t.theirs; $('prepTheirs').placeholder = t.theirsPh;
+  }
+  const savePrepDraft = debounce(() => {
+    const d = {}; for (const k of PREP_FIELDS) d[k] = $(k).value;
+    fetch('/api/prepdraft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).catch(() => {});
+  }, 600);
+  for (const k of PREP_FIELDS) $(k).addEventListener('input', savePrepDraft);
+  document.querySelectorAll('.prep-kind').forEach((b) => (b.onclick = () => { $('prepKind').value = b.dataset.kind; showKind(); savePrepDraft(); }));
+  fetch('/api/prepdraft').then((r) => r.json()).then((d) => { for (const k of PREP_FIELDS) if (d && d[k] != null) $(k).value = d[k]; showKind(); }).catch(showKind);
+  showKind();
+
+  // pick saved cards to write from
+  function renderPick() {
+    const lib = getCards(), box = $('cardPick');
+    $('pickCount').textContent = `(${lib.length} saved)`;
+    const was = new Set([...box.querySelectorAll('input:checked')].map((i) => i.value));
+    box.innerHTML = lib.length ? '' : '<p class="muted">No saved cards yet. Cut some first, or tick "cut a fresh card" for frontlines.</p>';
+    for (const c of lib) {
+      const yy = (String(c.cite?.date || '').match(/(\d{4})/) || ['', ''])[1].slice(2);
+      const l = document.createElement('label'); l.className = 'chk';
+      l.innerHTML = `<input type="checkbox" value="${esc(c.id)}"${was.has(c.id) ? ' checked' : ''}> <span><b>${esc(c.cite?.authorLast || '?')} ${esc(yy)}</b> ${esc(String(c.tag || '').replace(/<[^>]+>/g, ''))}</span>`;
+      box.appendChild(l);
+    }
+  }
+  $('cardPick').closest('details').addEventListener('toggle', renderPick);
+  renderPick();
+
+  // render prep docs the way your old prep looks
+  function prepHtml(d) {
+    const { FONT, tag, read } = fmt();
+    const P = (style, inner) => `<p style="margin:0 0 4pt;${FONT}font-size:${read}pt;${style}">${inner}</p>`;
+    let html = '';
+    for (const s of d.sections || []) {
+      html += `<p style="margin:10pt 0 4pt;${FONT}font-size:${tag}pt;font-weight:bold;text-decoration:underline;">${esc(s.heading)}</p>`;
+      if (s.lead) html += P('', esc(s.lead));
+      (s.items || []).forEach((it, i) => {
+        if (s.style === 'para') html += P('', esc(it.text));
+        else if (s.style === 'lettered') html += P('margin-left:36pt;text-indent:-24pt;', `(${String.fromCharCode(97 + i)})&nbsp;&nbsp;- ${it.label ? esc(it.label) + ': ' : ''}${esc(it.text)}`);
+        else if (s.style === 'tags') html += P('font-weight:bold;', esc(it.text));
+        else html += P('margin-left:30pt;text-indent:-14pt;', `●&nbsp;&nbsp;${it.label ? `<b>${esc(it.label)}</b>: ` : ''}${esc(it.text)}`);
+      });
+      for (const c of s.cards || []) html += `<div style="margin:6pt 0 0 0;">${cardHtml(c)}</div>`;
+    }
+    return html;
+  }
+  const prepPlain = (d) => (d.sections || []).map((s) => [s.heading, s.lead, ...(s.items || []).map((it, i) => (s.style === 'lettered' ? `(${String.fromCharCode(97 + i)}) - ` : s.style === 'para' ? '' : '• ') + (it.label ? it.label + ': ' : '') + it.text)].filter(Boolean).join('\n')).join('\n\n');
+
+  let prepCache = store.get('prepdocs', []);
+  const pushPrep = debounce(() => fetch('/api/prepdocs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prepCache) }).then(flashSaved).catch(() => {}), 300);
+  function savePrep(list) { prepCache = list; store.set('prepdocs', list); pushPrep(); renderPrep(); }
+  fetch('/api/prepdocs').then((r) => r.json()).then((d) => { if (Array.isArray(d)) { prepCache = d; store.set('prepdocs', d); } renderPrep(); }).catch(renderPrep);
+
+  const KIND_NAME = { frontline: 'Frontline', extension: 'Extensions', weighing: 'Weighing', ballot: 'Ballot directives' };
+  function renderPrep() {
+    const box = $('prepDocs');
+    if (!prepCache.length) { box.innerHTML = '<div class="empty">Nothing written yet. Pick what you need above and Negi writes it in your style.</div>'; return; }
+    box.innerHTML = '';
+    prepCache.forEach((d, i) => {
+      const ck = d.checks || {}, warn = (ck.unknownAuthors || []).length || (ck.slop || []).length;
+      const w = document.createElement('div'); w.className = 'card-wrap prep-doc';
+      const notes = [
+        ck.rewrote ? '🔧 Reworded once to cut AI-sounding phrases.' : '',
+        (ck.slop || []).length ? `⚠️ Still contains: ${ck.slop.join(', ')}. Reword before reading it.` : '',
+        (ck.unknownAuthors || []).length ? `⚠️ Mentions ${ck.unknownAuthors.join(', ')}, which isn't one of your cards. Check it or swap in your own card.` : '',
+        /\[(stat|card)\]/.test(prepPlain(d)) ? 'ℹ️ Fill in the [stat] / [card] blanks from your evidence.' : '',
+        (ck.longParts || []).length ? `ℹ️ Runs a little long: ${ck.longParts.join('; ')}. Trim it if you're short on time.` : '',
+      ].filter(Boolean);
+      w.innerHTML = `<div class="card-bar"><span class="badge ${warn ? 'review' : 'verified'}">${warn ? '⚠ CHECK' : '✔ SOUNDS LIKE YOU'}</span><b>${esc(d.side || '')}</b><span class="chip">${esc(KIND_NAME[d.kind] || d.kind)}</span><span class="sp"></span>
+        <button class="pix small" data-a="copy">Copy</button><button class="pix small ghost" data-a="del">✕</button></div>
+        ${notes.length ? `<div class="checks"><ul>${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>` : ''}
+        <div class="card">${prepHtml(d)}</div>`;
+      w.querySelector('[data-a=copy]').onclick = async () => { await copyRich(prepHtml(d), prepPlain(d)); say('Copied! Paste it into your prep doc ✨', 'happy'); };
+      w.querySelector('[data-a=del]').onclick = () => { const l = prepCache.slice(); l.splice(i, 1); savePrep(l); };
+      box.appendChild(w);
+    });
+  }
+  $('prepCopyAll').onclick = async () => { if (!prepCache.length) return; await copyRich(prepCache.map(prepHtml).join(''), prepCache.map(prepPlain).join('\n\n')); say(`Copied all your prep! 📋`, 'happy'); };
+  $('prepClear').onclick = () => { if (confirm('Delete all written prep?')) savePrep([]); };
+  for (const k of FMT_KEYS) $(k).addEventListener('input', () => renderPrep());
+
+  function prepLog(text, cls) { const d = document.createElement('div'); d.textContent = text; if (cls) d.className = cls; $('prepLog').appendChild(d); $('prepLog').scrollTop = 1e9; }
+  $('prepBtn').onclick = async () => {
+    const job = {
+      kind: $('prepKind').value, side: $('prepSide').value, speech: $('prepSpeech').value, topic: $('topic').value.trim(),
+      ours: $('prepOurs').value.trim(), theirs: $('prepTheirs').value.trim(), frame: $('prepFrame').value.trim(),
+      mechs: [...document.querySelectorAll('#mechs input:checked')].map((i) => i.value), fill: $('prepFill').checked,
+      cutCards: $('prepCut').checked, cardIds: [...document.querySelectorAll('#cardPick input:checked')].map((i) => i.value), ...dateBounds(),
+    };
+    if (!job.ours) return say('Tell me your argument first! 🥺', 'worried');
+    if (job.kind === 'frontline' && !job.theirs) return say('List their responses, one per line! 🥺', 'worried');
+    $('prepLog').innerHTML = ''; setBusy(true);
+    try {
+      await stream('/api/prep', job, (m) => {
+        if (m.type === 'state') say(m.say, m.state);
+        else if (m.type === 'log') prepLog((m.kind === 'search' ? '🔍 ' : m.kind === 'read' ? '📖 ' : m.kind === 'warn' ? '⚠️ ' : '• ') + m.text, m.kind === 'warn' ? 'warn' : '');
+        else if (m.type === 'error') prepLog('❌ ' + m.message, 'error');
+        else if (m.type === 'cards') { const lib = getCards(); lib.unshift(...m.cards); saveCards(lib); renderCards(); renderPick(); }
+        else if (m.type === 'prep') { savePrep([m.doc, ...prepCache]); prepLog('✅ Done. It\'s at the top of "Your prep" below.'); }
+      });
+    } catch (e) { if (e.name !== 'AbortError') prepLog('❌ ' + e.message, 'error'); }
+    setBusy(false);
+  };
 })();
