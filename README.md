@@ -66,6 +66,20 @@ Files are read inside your browser. Only the text is kept, saved in the `data` f
 
 **Voice check:** every result is checked for AI-sounding phrases ("moreover", "crucial", "delve" and similar), notes to herself, card names that aren't in your cards, and extensions that run long. If any of those turn up, she rewrites it once automatically. Each result shows **✔ SOUNDS LIKE YOU** or a note on what to check. Your prep auto-saves with daily backups, like your cards.
 
+## Paraphrasing cards
+Click **Paraphrase** on any card, or **Paraphrase all** above your cards. Negi rewrites what the card's **highlighting** says in plain spoken words, using the rest of the card only for context. It opens with the author, a short credential and the year ("Ellison of the Test Policy Institute writes in 2026 that…"), and it's shorter than the card, so it's quicker to read.
+
+Every paraphrase is checked for faithfulness before you see it:
+- names the author and year
+- adds no numbers the card doesn't have
+- keeps the author's hedges ("could", "may", "likely")
+- adds no overclaiming ("always", "proves", "guarantees")
+- no quotes or ellipses
+- in your own words, with no 10-word stretch copied from the card
+- shorter than the card's highlighting
+
+If a check fails, Negi rewrites it once automatically. Anything still off is flagged. **Copy paraphrase** copies the tag and paraphrase; **Copy with card** adds the original card underneath. Keep the original handy, because most tournaments (including NSDA) let the other team ask to see it, and some ban paraphrasing outright, so check your tournament's rules.
+
 ## Choosing how recent the evidence is
 Use **Published** in the cut form: *2026 only*, *2025 only*, *2025 or newer*, *2024 or newer*, *Last 6 months*, *Last 12 months* (the default), *Any time*, or **Custom years** (for example 2023 to 2026).
 - Searches look only in that range.

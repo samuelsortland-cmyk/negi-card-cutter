@@ -158,3 +158,11 @@ h3.sub { font-size: 15px; margin: 18px 0 4px; }
 .file-row:last-child { border-bottom: 0; }
 .file-name { font-weight: 700; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 200px; }
 .file-row select { width: auto; margin: 0; flex: 0 1 230px; }
+
+.para-box { margin: 0; padding: 10px 14px; background: var(--bg); border-bottom: 2px solid var(--line); }
+.para-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.para-head .sp { flex: 1; }
+.para-text { margin: 8px 0; padding: 10px 12px; background: #fff; color: #000; border-radius: 8px; font-family: Calibri, Carlito, sans-serif; font-size: 15px; line-height: 1.5; }
+.para-checks { font-size: 12.5px; }
+.para-fails { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: #c9841a; }
+.para-box .muted { margin: 6px 0 0; }

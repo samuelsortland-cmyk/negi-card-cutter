@@ -306,6 +306,44 @@
     paragraphs: ['The consequences would extend well beyond the four host nations. <u>Nuclear sharing exists precisely to <h>show Moscow</h> that <h>an attack on any ally risks a response</h> that <h>Russia <b>cannot control</b></h>.</u>'] };
   function renderPreview() {} // the cards themselves (or the sample below) show the format live
 
+  // ---- paraphrasing
+  function paraHtml(c) {
+    const { FONT, tag, read } = fmt();
+    return `<p style="margin:0 0 4pt;${FONT}font-size:${tag}pt;font-weight:bold;">${tagHtml(c.tag)}</p><p style="margin:0 0 6pt;${FONT}font-size:${read}pt;">${esc(c.paraphrase.text)}</p>`;
+  }
+  const paraPlain = (c) => `${String(c.tag).replace(/<[^>]+>/g, '')}\n${c.paraphrase.text}`;
+  function paraBox(c) {
+    const p = c.paraphrase;
+    if (!p) return '';
+    const fails = (p.check?.items || []).filter((x) => !x.state);
+    const mark = (x) => x.state ? '<span class="ok">✔</span>' : '<span class="bad">✘</span>';
+    return `<div class="para-box">
+      <div class="para-head"><b>Paraphrase</b><span class="badge ${fails.length ? 'review' : 'verified'}">${fails.length ? '⚠ CHECK' : '✔ FAITHFUL'}</span>
+        <span class="chip">🕒 ~${p.check?.seconds ?? '?'}s${c.read ? ` (card ~${c.read.seconds}s)` : ''}</span><span class="sp"></span>
+        <button class="pix small" data-a="pcopy">Copy paraphrase</button><button class="pix small" data-a="pcopycard">Copy with card</button></div>
+      <p class="para-text">${esc(p.text)}</p>
+      <div class="para-checks">${(p.check?.items || []).map((x) => `<span title="${esc(x.note)}">${mark(x)} ${esc(x.label)}</span>`).join(' &nbsp; ')}</div>
+      ${fails.length ? `<ul class="para-fails">${fails.map((x) => `<li>${esc(x.label)}${x.note ? ': ' + esc(x.note) : ''}</li>`).join('')}</ul>` : ''}
+      <p class="muted">${p.fixed ? 'Rewritten once automatically to pass the checks. ' : ''}Keep the original card below ready: most tournaments (including NSDA) let the other team ask to see it.</p>
+    </div>`;
+  }
+  async function paraphrase(id, btn) {
+    const card = getCards().find((x) => x.id === id);
+    if (!card) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Paraphrasing…'; }
+    say('Putting it in my own words, carefully~ ✍️', 'thinking');
+    try {
+      const r = await (await fetch('/api/paraphrase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card }) })).json();
+      if (!r.ok) throw new Error(r.error);
+      const lib = getCards(), k = lib.findIndex((x) => x.id === id);
+      if (k >= 0) { lib[k] = { ...lib[k], paraphrase: { text: r.text, check: r.check, fixed: r.fixed, at: r.at } }; saveCards(lib); renderCards(); }
+      say(r.check.ok ? 'Paraphrased, and it stays faithful to the card ✨' : 'Paraphrased, but check the flagged part 👀', r.check.ok ? 'happy' : 'worried');
+    } catch (e) {
+      say('Oops… ' + e.message.slice(0, 100), 'sad');
+      if (btn) { btn.disabled = false; btn.textContent = 'Paraphrase'; }
+    }
+  }
+
   function renderCards() {
     renderPick(); // keep the prep writer's card list in sync
     const lib = getCards(), box = $('cards');
@@ -316,15 +354,26 @@
       const label = { verified: '✔ VERIFIED', review: '⚠ REVIEW', fail: '✘ FAILED CHECK' }[st];
       const w = document.createElement('div'); w.className = 'card-wrap';
       w.innerHTML = `<div class="card-bar"><span class="badge ${st}">${label}</span>${c.side ? `<b>${esc(c.side)}</b>` : ''}${c.mode ? `<span class="chip">${esc(c.mode)}</span>` : ''}${c.read ? `<span class="chip" title="${c.read.words} highlighted words">🕒 ~${c.read.seconds}s read</span>` : ''}<span class="sp"></span>
-        <button class="pix small" data-a="copy">Copy card</button><button class="pix small" data-a="open">Open source</button><button class="pix small ghost" data-a="del">✕</button></div>
+        <button class="pix small" data-a="copy">Copy card</button><button class="pix small" data-a="para">${c.paraphrase ? 'Redo paraphrase' : 'Paraphrase'}</button><button class="pix small" data-a="open">Open source</button><button class="pix small ghost" data-a="del">✕</button></div>
         <details class="checks" ${st !== 'verified' ? 'open' : ''}><summary>Double-check report</summary>${checksHtml(c)}</details>
+        ${paraBox(c)}
         <div class="card">${cardHtml(c)}</div>`;
+      w.querySelector('[data-a=para]').onclick = (e) => paraphrase(c.id, e.target);
+      w.querySelector('[data-a=pcopy]')?.addEventListener('click', async () => { await copyRich(paraHtml(c), paraPlain(c)); say('Copied the paraphrase! Keep the card handy in case they ask ✨', 'happy'); });
+      w.querySelector('[data-a=pcopycard]')?.addEventListener('click', async () => { await copyRich(paraHtml(c) + cardHtml(c), paraPlain(c) + '\n\n' + plain(c)); say('Copied the paraphrase with the original card ✨', 'happy'); });
       w.querySelector('[data-a=copy]').onclick = async () => { await copyRich(cardHtml(c), plain(c)); say(st === 'fail' ? 'Copied, but please fix the flagged issues first! 💦' : 'Copied! Paste it in your doc ✨', st === 'fail' ? 'worried' : 'happy'); };
       w.querySelector('[data-a=open]').onclick = () => fetch('/api/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: c.cite.url }) });
       w.querySelector('[data-a=del]').onclick = () => { const l = getCards(); l.splice(i, 1); saveCards(l); renderCards(); };
       box.appendChild(w);
     });
   }
+  $('paraAll').onclick = async () => {
+    const todo = getCards().filter((c) => !c.paraphrase);
+    if (!todo.length) return say('Every card already has a paraphrase! ✨', 'happy');
+    $('paraAll').disabled = true;
+    for (let i = 0; i < todo.length; i += 3) await Promise.all(todo.slice(i, i + 3).map((c) => paraphrase(c.id))); // 3 at a time
+    $('paraAll').disabled = false;
+  };
   const allHtml = () => getCards().map(cardHtml).join('<p>&nbsp;</p>');
   $('copyAll').onclick = async () => { const lib = getCards(); if (!lib.length) return; await copyRich(allHtml(), lib.map(plain).join('\n\n')); say(`Copied all ${lib.length} cards! 📋`, 'happy'); };
   $('downloadDoc').onclick = () => {
