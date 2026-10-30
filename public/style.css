@@ -166,3 +166,6 @@ h3.sub { font-size: 15px; margin: 18px 0 4px; }
 .para-checks { font-size: 12.5px; }
 .para-fails { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: #c9841a; }
 .para-box .muted { margin: 6px 0 0; }
+
+.para-note { border: 2px dashed var(--teal); border-radius: 10px; padding: 4px 12px; margin: 8px 0; }
+.para-note p { margin: 6px 0; }

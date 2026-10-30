@@ -333,7 +333,7 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Paraphrasing…'; }
     say('Putting it in my own words, carefully~ ✍️', 'thinking');
     try {
-      const r = await (await fetch('/api/paraphrase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card }) })).json();
+      const r = await (await fetch('/api/paraphrase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card, judge: $('prepJudge').value }) })).json();
       if (!r.ok) throw new Error(r.error);
       const lib = getCards(), k = lib.findIndex((x) => x.id === id);
       if (k >= 0) { lib[k] = { ...lib[k], paraphrase: { text: r.text, check: r.check, fixed: r.fixed, at: r.at } }; saveCards(lib); renderCards(); }
@@ -414,15 +414,17 @@
     frontline: { ours: 'Your argument they\'re responding to', oursPh: 'e.g. Extended deterrence: TPNW ratification forces the B61s out, which tells Moscow NATO won\'t escalate', theirs: 'Their responses (one per line)', theirsPh: 'e.g. Deterrence is conventional now, nukes don\'t matter\nThe B61s are militarily useless\nRussia is already deterred by France and the UK' },
     extension: { ours: 'Arguments to extend (one per line, "Name: what it says"). Each becomes 3 sentences: uniqueness, link, impact', oursPh: 'e.g. Deterrence: removing B61s ends nuclear sharing, Russia reads that as weakness and probes the Baltics, that escalates to nuclear war', theirs: '', theirsPh: '' },
     weighing: { ours: 'Your impacts (one per line, "Name: what it says")', oursPh: 'e.g. Nuclear war: Russian probing in the Baltics escalates, millions die', theirs: 'Their impacts to weigh against (optional, one per line)', theirsPh: 'e.g. Humanitarian: nuclear stigma lowers the chance of use' },
+    paracase: { ours: '', oursPh: '', theirs: '', theirsPh: '' },
     ballot: { ours: 'Your best arguments (one per line)', oursPh: 'e.g. Deterrence: B61s leaving collapses Article 5 credibility', theirs: 'Their best arguments (optional, one per line)', theirsPh: 'e.g. Norms: ratifying stigmatizes nukes' },
   };
   let uploads = []; // uploaded files (declared early: the form labels depend on it)
-  const PREP_FIELDS = ['prepKind', 'prepSide', 'prepSpeech', 'prepOurs', 'prepTheirs', 'prepFrame'];
+  const PREP_FIELDS = ['prepKind', 'prepSide', 'prepJudge', 'prepSpeech', 'prepOurs', 'prepTheirs', 'prepFrame'];
   function showKind() {
     const k = $('prepKind').value, t = KIND_TEXT[k];
     document.querySelectorAll('.prep-kind').forEach((b) => b.setAttribute('aria-checked', b.dataset.kind === k));
     document.querySelectorAll('.kind-opt').forEach((el) => { el.hidden = !el.dataset.for.split(' ').includes(k); });
     $('oursLabel').textContent = t.ours + (uploads.some((u) => u.role === 'mine') ? ' (optional: Negi reads your uploaded case)' : ''); $('prepOurs').placeholder = t.oursPh;
+    $('oursWrap').hidden = !t.ours; $('cardPick').closest('details').hidden = k === 'paracase';
     $('theirsWrap').hidden = !t.theirs; $('theirsLabel').textContent = t.theirs; $('prepTheirs').placeholder = t.theirsPh;
   }
   const savePrepDraft = debounce(() => {
@@ -460,35 +462,44 @@
       if (s.lead) html += P('', esc(s.lead));
       if (s.style === 'para') html += P('', (s.items || []).map((it) => esc(it.text)).join(' ')); // one paragraph, like your extensions
       (s.items || []).forEach((it, i) => {
-        if (s.style === 'para') return;
+        if (s.style === 'para' || s.style === 'case') return;
         else if (s.style === 'lettered') html += P('margin-left:36pt;text-indent:-24pt;', `(${String.fromCharCode(97 + i)})&nbsp;&nbsp;- ${it.label ? esc(it.label) + ': ' : ''}${esc(it.text)}`);
         else if (s.style === 'tags') html += P('font-weight:bold;', esc(it.text));
         else html += P('margin-left:30pt;text-indent:-14pt;', `●&nbsp;&nbsp;${it.label ? `<b>${esc(it.label)}</b>: ` : ''}${esc(it.text)}`);
       });
+      if (s.style === 'case') for (const it of s.items || []) {
+        if (it.kind === 'card') html += `<p style="margin:8pt 0 2pt;${FONT}font-size:${tag}pt;font-weight:bold;">${esc(it.label)}</p>` + P('', esc(it.text));
+        else html += P('', esc(it.text));
+      }
       for (const c of s.cards || []) html += `<div style="margin:6pt 0 0 0;">${cardHtml(c)}</div>`;
+    }
+    if ((d.appendix || []).length) {
+      html += `<p style="margin:18pt 0 4pt;${FONT}font-size:${tag}pt;font-weight:bold;text-decoration:underline;">Original cards (have these ready if the other team asks)</p>`;
+      for (const c of d.appendix) html += `<p style="margin:8pt 0 2pt;${FONT}font-size:${tag}pt;font-weight:bold;">${esc(c.tag)}</p>${P('', esc(c.citeLine))}${c.paragraphs.map((x) => `<p style="margin:0 0 6pt;${FONT}">${markupToHtml(x)}</p>`).join('')}`;
     }
     return html;
   }
-  const prepPlain = (d) => (d.sections || []).map((s) => s.style === 'para' ? [s.heading, (s.items || []).map((it) => it.text).join(' ')].join('\n') : [s.heading, s.lead, ...(s.items || []).map((it, i) => (s.style === 'lettered' ? `(${String.fromCharCode(97 + i)}) - ` : s.style === 'para' ? '' : '• ') + (it.label ? it.label + ': ' : '') + it.text)].filter(Boolean).join('\n')).join('\n\n');
+  const prepPlain = (d) => (d.sections || []).map((s) => s.style === 'case' ? [s.heading, ...(s.items || []).map((it) => it.kind === 'card' ? `${it.label}\n${it.text}` : it.text)].join('\n\n') : s.style === 'para' ? [s.heading, (s.items || []).map((it) => it.text).join(' ')].join('\n') : [s.heading, s.lead, ...(s.items || []).map((it, i) => (s.style === 'lettered' ? `(${String.fromCharCode(97 + i)}) - ` : s.style === 'para' ? '' : '• ') + (it.label ? it.label + ': ' : '') + it.text)].filter(Boolean).join('\n')).join('\n\n');
 
   let prepCache = store.get('prepdocs', []);
   const pushPrep = debounce(() => fetch('/api/prepdocs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prepCache) }).then(flashSaved).catch(() => {}), 300);
   function savePrep(list) { prepCache = list; store.set('prepdocs', list); pushPrep(); renderPrep(); }
   fetch('/api/prepdocs').then((r) => r.json()).then((d) => { if (Array.isArray(d)) { prepCache = d; store.set('prepdocs', d); } renderPrep(); }).catch(renderPrep);
 
-  const KIND_NAME = { frontline: 'Frontline', extension: 'Extensions', weighing: 'Weighing', ballot: 'Ballot directives' };
+  const KIND_NAME = { frontline: 'Frontline', extension: 'Extensions', weighing: 'Weighing', ballot: 'Ballot directives', paracase: 'Paraphrased case' };
   function renderPrep() {
     const box = $('prepDocs');
     if (!prepCache.length) { box.innerHTML = '<div class="empty">Nothing written yet. Pick what you need above and Negi writes it in your style.</div>'; return; }
     box.innerHTML = '';
     prepCache.forEach((d, i) => {
-      const ck = d.checks || {}, warn = (ck.unknownAuthors || []).length || (ck.slop || []).length;
+      const ck = d.checks || {}, warn = (ck.unknownAuthors || []).length || (ck.slop || []).length || (ck.paraWarnings || []).length;
       const w = document.createElement('div'); w.className = 'card-wrap prep-doc';
       const notes = [
         ck.rewrote ? '🔧 Rewritten once automatically to pass the voice and length checks.' : '',
         (ck.slop || []).length ? `⚠️ Still contains: ${ck.slop.join(', ')}. Reword before reading it.` : '',
         (ck.unknownAuthors || []).length ? `⚠️ Mentions ${ck.unknownAuthors.join(', ')}, which isn't one of your cards. Check it or swap in your own card.` : '',
         /\[(stat|card)\]/.test(prepPlain(d)) ? 'ℹ️ Fill in the [stat] / [card] blanks from your evidence.' : '',
+        (ck.paraWarnings || []).length ? `⚠️ Check these paraphrases against the original: ${ck.paraWarnings.slice(0, 6).join('; ')}${ck.paraWarnings.length > 6 ? ` and ${ck.paraWarnings.length - 6} more` : ''}.` : '',
         (ck.longParts || []).length ? `ℹ️ ${ck.longParts.join('; ')}. Trim or split it before reading.` : '',
       ].filter(Boolean);
       w.innerHTML = `<div class="card-bar"><span class="badge ${warn ? 'review' : 'verified'}">${warn ? '⚠ CHECK' : '✔ SOUNDS LIKE YOU'}</span><b>${esc(d.side || '')}</b><span class="chip">${esc(KIND_NAME[d.kind] || d.kind)}</span><span class="sp"></span>
@@ -557,11 +568,16 @@
       ours: $('prepOurs').value.trim(), theirs: $('prepTheirs').value.trim(), frame: $('prepFrame').value.trim(),
       mechs: [...document.querySelectorAll('#mechs input:checked')].map((i) => i.value), fill: $('prepFill').checked,
       cutCards: $('prepCut').checked, cardIds: [...document.querySelectorAll('#cardPick input:checked')].map((i) => i.value), ...dateBounds(),
-      uploads: uploads.map(({ name, role, text }) => ({ name, role, text })),
+      judge: $('prepJudge').value, includeOriginals: $('prepOriginals').checked,
+      uploads: uploads.map(({ name, role, text, markup }) => ($('prepKind').value === 'paracase' ? { name, role, text, markup } : { name, role, text: text.slice(0, 40000) })),
     };
     const up = (...r) => uploads.some((u) => r.includes(u.role));
-    if (!job.ours && !up('mine', 'notes')) return say('Tell me your argument, or upload your case! 🥺', 'worried');
-    if (job.kind === 'frontline' && !job.theirs && !up('theirs', 'flow')) return say('List their responses, or upload their case or your flow! 🥺', 'worried');
+    if (job.kind === 'paracase') {
+      if (!up('mine')) return say('Upload your case and label it "My case" first! 📄', 'worried');
+    } else {
+      if (!job.ours && !up('mine', 'notes')) return say('Tell me your argument, or upload your case! 🥺', 'worried');
+      if (job.kind === 'frontline' && !job.theirs && !up('theirs', 'flow')) return say('List their responses, or upload their case or your flow! 🥺', 'worried');
+    }
     $('prepLog').innerHTML = ''; setBusy(true);
     try {
       await stream('/api/prep', job, (m) => {

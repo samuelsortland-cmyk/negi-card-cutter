@@ -186,6 +186,7 @@
         <button type="button" class="seg-btn prep-kind" data-kind="extension" role="radio">Extensions <small>summary / final focus</small></button>
         <button type="button" class="seg-btn prep-kind" data-kind="weighing" role="radio">Weighing <small>templates per impact</small></button>
         <button type="button" class="seg-btn prep-kind" data-kind="ballot" role="radio">Ballot directives <small>how the judge votes</small></button>
+        <button type="button" class="seg-btn prep-kind" data-kind="paracase" role="radio">Paraphrase case <small>your whole uploaded case</small></button>
       </div>
       <input type="hidden" id="prepKind" value="frontline">
       <div class="upload-box" id="dropZone">
@@ -199,11 +200,23 @@
         <label>Side
           <select id="prepSide"><option value="Pro">Pro (Aff)</option><option value="Con">Con (Neg)</option></select>
         </label>
+        <label>Judge
+          <select id="prepJudge">
+            <option value="mixed">Mixed panel / not sure</option>
+            <option value="lay">Lay (parent, community volunteer)</option>
+            <option value="flay">Flay (flows, wants it conversational)</option>
+            <option value="tech">Tech (circuit, tech over truth)</option>
+          </select>
+        </label>
         <label class="kind-opt" data-for="ballot">Speech
           <select id="prepSpeech"><option value="summary">Summary</option><option value="ff">Final focus</option></select>
         </label>
       </div>
-      <label><span id="oursLabel">Your argument</span>
+      <div class="kind-opt para-note" data-for="paracase">
+        <p>Upload your case above and label it <b>My case</b>. Negi finds every card, paraphrases what you <b>highlighted</b> (Word files keep your highlighting; for PDFs and text she uses the whole card), and checks each paraphrase is faithful.</p>
+        <label class="chk"><input type="checkbox" id="prepOriginals" checked> Put the original cards at the end (keep them ready in case the other team asks)</label>
+      </div>
+      <label id="oursWrap"><span id="oursLabel">Your argument</span>
         <textarea id="prepOurs" rows="3"></textarea>
       </label>
       <label id="theirsWrap"><span id="theirsLabel">Their responses (one per line)</span>

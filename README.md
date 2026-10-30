@@ -50,9 +50,18 @@ Before you get a card, Negi counts the highlighted words and checks that they re
 ## Prep writer
 In the **📝 Prep writer** panel, Negi writes four kinds of prep in the same format and voice as your own prep docs:
 - **Frontlines:** give your argument and their responses (one per line). For each response you get 2–3 answers (no link, non-unique, turn, mitigation, or "they misread our case") as "FL:" bullets. Tick **cut a fresh card for each response** and she also cuts a rebuttal card for every response (up to 4) and puts it under the answers.
-- **Extensions:** one "Extend: X" paragraph per argument, always exactly **3 sentences**: **uniqueness** (the status quo now), **link** (what changes), and **impact** (what it leads to). The voice check enforces this.
+- **Extensions:** one "Extend: X" paragraph per argument, always exactly **3 short sentences** (about 35 words): **uniqueness** (where things stand now), **link** (what changes), and **impact** (what it leads to). They're in plain words a parent judge follows, with the structure a flow judge expects. The voice check enforces the length.
 - **Weighing:** "Weighing: X" templates with (a)/(b) lines like "- Timeframe + Probability: … This outweighs because […]". Pick the mechanisms or let her choose. Tick **Fill in** to have her write the comparison against their impacts.
-- **Ballot directives:** the first-look line, if-then lines, why to prefer your weighing, what they dropped, and a closing vote line.
+- **Ballot directives:** persuasive final focus and summary lines: the first-look line; their argument walked out step by step so the judge sees how much has to go right; an "even if" line; if-then lines; what they never answered; and a closing vote line. They make the other side's argument look unlikely without insults: anything like "stupid", "absurd" or "ridiculous" gets rewritten.
+- **Paraphrase case:** upload your case (labeled **My case**) and Negi finds every card, paraphrases what you **highlighted** (Word files keep your highlighting; for PDFs and text she uses the whole card), and checks each paraphrase the same way single cards are checked. Your contention headings and analytics stay as they are, and the original cards (with your highlighting) go at the end, ready if the other team asks.
+
+**Judge:** pick **Lay**, **Flay**, **Tech** or **Mixed panel**, and Negi adapts the wording:
+- **Lay** (parents, volunteers): plain words, a clear story, the main clash only.
+- **Flay** (keeps a flow, wants it conversational): debate terms explained the first time, explicit weighing.
+- **Tech** (circuit, tech over truth): shorthand, concessions, comparative and meta-weighing.
+- **Mixed:** parent-clear sentences with a structure a flow judge can follow.
+
+The judge setting also applies to card paraphrases.
 
 **Uploading files:** click **📎 Upload files** (or drag files into the box). Word (.docx), PDF and text files work; for a Google Doc, use File → Download → .docx first. Label each file:
 - **My case:** Negi takes your contentions, cards and author names from it, so you can leave "Your argument" empty.

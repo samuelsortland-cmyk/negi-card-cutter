@@ -21,7 +21,7 @@
         const raw = u8.subarray(start, start + size);
         const xml = method === 0 ? new TextDecoder().decode(raw)
           : await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
-        return xmlToText(xml);
+        return { text: xmlToText(xml), markup: xmlToMarkup(xml) };
       }
       p += 46 + nameLen + extra + comment;
     }
@@ -37,6 +37,32 @@
         if (el.tagName === 'w:t') line += el.textContent;
         else if (el.tagName === 'w:tab') line += '\t';
         else if (el.tagName === 'w:br') line += '\n';
+      }
+      out.push(line);
+    }
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  // Same text, but runs keep the card formatting as <u>/<h>/<b> (highlight = what was read in round).
+  function xmlToMarkup(xml) {
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const on = (pr, tag, bad) => { const el = pr && pr.getElementsByTagName(tag)[0]; if (!el) return false; const v = (el.getAttribute('w:val') || '').toLowerCase(); return !bad.includes(v); };
+    const out = [];
+    for (const para of doc.getElementsByTagName('w:p')) {
+      let line = '';
+      for (const run of para.getElementsByTagName('w:r')) {
+        const pr = run.getElementsByTagName('w:rPr')[0];
+        const shd = pr && pr.getElementsByTagName('w:shd')[0];
+        const fill = shd ? (shd.getAttribute('w:fill') || '').toLowerCase() : '';
+        const h = on(pr, 'w:highlight', ['none', '']) || (!!fill && !['auto', 'ffffff', ''].includes(fill));
+        const ul = on(pr, 'w:u', ['none', '']), b = on(pr, 'w:b', ['false', '0']) && !!pr.getElementsByTagName('w:b')[0];
+        let t = '';
+        for (const el of run.getElementsByTagName('*')) {
+          if (el.tagName === 'w:t') t += el.textContent; else if (el.tagName === 'w:tab') t += '\t';
+        }
+        if (!t) continue;
+        t = t.replace(/</g, '‹');
+        line += (ul ? '<u>' : '') + (h ? '<h>' : '') + (b ? '<b>' : '') + t + (b ? '</b>' : '') + (h ? '</h>' : '') + (ul ? '</u>' : '');
       }
       out.push(line);
     }
@@ -70,14 +96,15 @@
 
   async function fileToText(file) {
     const ext = (file.name.split('.').pop() || '').toLowerCase();
-    let text;
-    if (ext === 'docx') text = await docxText(await file.arrayBuffer());
+    let text, markup = '';
+    if (ext === 'docx') ({ text, markup } = await docxText(await file.arrayBuffer()));
     else if (ext === 'pdf') text = await pdfText(await file.arrayBuffer());
     else if (['txt', 'md', 'rtf', 'csv'].includes(ext) || file.type.startsWith('text/')) text = await file.text();
     else if (ext === 'doc') throw new Error('Old .doc files can\'t be read. In Word, use File → Save As → .docx, then upload that.');
     else throw new Error('Upload a Word (.docx), PDF or text file. For a Google Doc, use File → Download → .docx.');
     const cut = text.length > MAX_CHARS;
-    return { text: cut ? text.slice(0, MAX_CHARS) : text, chars: text.length, cut };
+    // the full case (up to 120k) is kept for whole-case paraphrasing; prep writing uses the first 40k
+    return { text: text.slice(0, 120000), markup: markup.slice(0, 240000), chars: text.length, cut };
   }
 
   window.NegiUploads = { fileToText, xmlToText, MAX_CHARS };
