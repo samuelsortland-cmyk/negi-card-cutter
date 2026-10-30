@@ -54,6 +54,14 @@ In the **📝 Prep writer** panel, Negi writes four kinds of prep in the same fo
 - **Weighing:** "Weighing: X" templates with (a)/(b) lines like "- Timeframe + Probability: … This outweighs because […]". Pick the mechanisms or let her choose. Tick **Fill in** to have her write the comparison against their impacts.
 - **Ballot directives:** the first-look line, if-then lines, why to prefer your weighing, what they dropped, and a closing vote line.
 
+**Uploading files:** click **📎 Upload files** (or drag files into the box). Word (.docx), PDF and text files work; for a Google Doc, use File → Download → .docx first. Label each file:
+- **My case:** Negi takes your contentions, cards and author names from it, so you can leave "Your argument" empty.
+- **Their case** or **Their responses / my flow:** what frontlines and ballot directives answer.
+- **My old prep:** she copies your voice and format from it.
+- **Other notes**
+
+Files are read inside your browser. Only the text is kept, saved in the `data` folder, and up to 40,000 characters per file are used. Authors cited in your uploaded files count as real cards, so the voice check won't flag them.
+
 **Using your cards:** open **Use my saved cards** and tick the ones to draw from. Negi only names authors from cards you tick, and anything she'd need but doesn't have stays as a [stat] or [card] blank.
 
 **Voice check:** every result is checked for AI-sounding phrases ("moreover", "crucial", "delve" and similar), notes to herself, card names that aren't in your cards, and extensions that run long. If any of those turn up, she rewrites it once automatically. Each result shows **✔ SOUNDS LIKE YOU** or a note on what to check. Your prep auto-saves with daily backups, like your cards.

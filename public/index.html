@@ -187,6 +187,13 @@
         <button type="button" class="seg-btn prep-kind" data-kind="ballot" role="radio">Ballot directives <small>how the judge votes</small></button>
       </div>
       <input type="hidden" id="prepKind" value="frontline">
+      <div class="upload-box" id="dropZone">
+        <div class="upload-top">
+          <label class="pix small upload-btn">📎 Upload files<input type="file" id="fileInput" multiple accept=".docx,.pdf,.txt,.md"></label>
+          <span class="muted">or drag them here. Word (.docx), PDF or text: your case, their case, your flow, or old prep for Negi to copy your style from.</span>
+        </div>
+        <div id="fileList"></div>
+      </div>
       <div class="row">
         <label>Side
           <select id="prepSide"><option value="Pro">Pro (Aff)</option><option value="Con">Con (Neg)</option></select>
@@ -266,6 +273,7 @@
   </main>
 </div>
 <script src="pet.js"></script>
+<script src="uploads.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

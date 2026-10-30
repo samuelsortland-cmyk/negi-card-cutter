@@ -367,12 +367,13 @@
     weighing: { ours: 'Your impacts (one per line, "Name: what it says")', oursPh: 'e.g. Nuclear war: Russian probing in the Baltics escalates, millions die', theirs: 'Their impacts to weigh against (optional, one per line)', theirsPh: 'e.g. Humanitarian: nuclear stigma lowers the chance of use' },
     ballot: { ours: 'Your best arguments (one per line)', oursPh: 'e.g. Deterrence: B61s leaving collapses Article 5 credibility', theirs: 'Their best arguments (optional, one per line)', theirsPh: 'e.g. Norms: ratifying stigmatizes nukes' },
   };
+  let uploads = []; // uploaded files (declared early: the form labels depend on it)
   const PREP_FIELDS = ['prepKind', 'prepSide', 'prepSpeech', 'prepOurs', 'prepTheirs', 'prepFrame'];
   function showKind() {
     const k = $('prepKind').value, t = KIND_TEXT[k];
     document.querySelectorAll('.prep-kind').forEach((b) => b.setAttribute('aria-checked', b.dataset.kind === k));
     document.querySelectorAll('.kind-opt').forEach((el) => { el.hidden = !el.dataset.for.split(' ').includes(k); });
-    $('oursLabel').textContent = t.ours; $('prepOurs').placeholder = t.oursPh;
+    $('oursLabel').textContent = t.ours + (uploads.some((u) => u.role === 'mine') ? ' (optional: Negi reads your uploaded case)' : ''); $('prepOurs').placeholder = t.oursPh;
     $('theirsWrap').hidden = !t.theirs; $('theirsLabel').textContent = t.theirs; $('prepTheirs').placeholder = t.theirsPh;
   }
   const savePrepDraft = debounce(() => {
@@ -434,7 +435,7 @@
       const ck = d.checks || {}, warn = (ck.unknownAuthors || []).length || (ck.slop || []).length;
       const w = document.createElement('div'); w.className = 'card-wrap prep-doc';
       const notes = [
-        ck.rewrote ? '🔧 Reworded once to cut AI-sounding phrases.' : '',
+        ck.rewrote ? '🔧 Rewritten once automatically to pass the voice and length checks.' : '',
         (ck.slop || []).length ? `⚠️ Still contains: ${ck.slop.join(', ')}. Reword before reading it.` : '',
         (ck.unknownAuthors || []).length ? `⚠️ Mentions ${ck.unknownAuthors.join(', ')}, which isn't one of your cards. Check it or swap in your own card.` : '',
         /\[(stat|card)\]/.test(prepPlain(d)) ? 'ℹ️ Fill in the [stat] / [card] blanks from your evidence.' : '',
@@ -453,6 +454,52 @@
   $('prepClear').onclick = () => { if (confirm('Delete all written prep?')) savePrep([]); };
   for (const k of FMT_KEYS) $(k).addEventListener('input', () => renderPrep());
 
+  // ---- uploaded files (read in the browser; only their text is kept)
+  const ROLES = [['mine', 'My case'], ['theirs', 'Their case'], ['flow', 'Their responses / my flow'], ['style', 'My old prep (copy my style)'], ['notes', 'Other notes']];
+  const pushUploads = debounce(() => fetch('/api/prepuploads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(uploads) }).then(flashSaved).catch(() => {}), 300);
+  fetch('/api/prepuploads').then((r) => r.json()).then((d) => { if (Array.isArray(d)) uploads = d; renderUploads(); }).catch(() => {});
+  function guessRole(name) {
+    const n = name.toLowerCase();
+    if (/flow|rebuttal|responses?|blocks? against|their|opp/.test(n)) return 'flow';
+    if (/prep|frontline|\bfl\b|extension|weighing|yammers/.test(n)) return 'style';
+    const side = $('prepSide').value.toLowerCase();
+    if ((side === 'pro' && /\b(con|neg)\b/.test(n)) || (side === 'con' && /\b(pro|aff)\b/.test(n))) return 'theirs';
+    return 'mine';
+  }
+  function renderUploads() {
+    const box = $('fileList');
+    box.innerHTML = '';
+    for (const u of uploads) {
+      const row = document.createElement('div'); row.className = 'file-row';
+      row.innerHTML = `<span class="file-name" title="${esc(u.name)}">📄 ${esc(u.name)}</span>
+        <span class="muted">${u.chars.toLocaleString()} chars${u.cut ? ' (first 40,000 used)' : ''}</span>
+        <select aria-label="What is ${esc(u.name)}?">${ROLES.map(([v, l]) => `<option value="${v}"${u.role === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+        <button class="pix small ghost" title="Remove">✕</button>`;
+      row.querySelector('select').onchange = (e) => { u.role = e.target.value; pushUploads(); showKind(); };
+      row.querySelector('button').onclick = () => { uploads = uploads.filter((x) => x !== u); renderUploads(); pushUploads(); };
+      box.appendChild(row);
+    }
+  }
+  async function addFiles(files) {
+    for (const f of files) {
+      prepLog(`📎 Reading ${f.name}…`);
+      try {
+        const r = await NegiUploads.fileToText(f);
+        uploads = uploads.filter((x) => x.name !== f.name).concat({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: f.name, role: guessRole(f.name), ...r });
+        prepLog(`✅ ${f.name}: ${r.chars.toLocaleString()} characters read. Check its label below the upload button.`);
+      } catch (e) { prepLog(`❌ ${f.name}: ${e.message}`, 'error'); }
+    }
+    renderUploads(); pushUploads(); showKind();
+    if (uploads.length) say('Got your files! Tell me what each one is, then hit Write 📎', 'happy');
+  }
+  $('fileInput').addEventListener('change', (e) => { addFiles([...e.target.files]); e.target.value = ''; });
+  const dz = $('dropZone');
+  ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('drag'); }));
+  dz.addEventListener('drop', (e) => addFiles([...e.dataTransfer.files]));
+  // a file dropped anywhere else shouldn't make the browser open it in Negi's place
+  ['dragover', 'drop'].forEach((ev) => window.addEventListener(ev, (e) => { if (!dz.contains(e.target)) e.preventDefault(); }));
+
   function prepLog(text, cls) { const d = document.createElement('div'); d.textContent = text; if (cls) d.className = cls; $('prepLog').appendChild(d); $('prepLog').scrollTop = 1e9; }
   $('prepBtn').onclick = async () => {
     const job = {
@@ -460,9 +507,11 @@
       ours: $('prepOurs').value.trim(), theirs: $('prepTheirs').value.trim(), frame: $('prepFrame').value.trim(),
       mechs: [...document.querySelectorAll('#mechs input:checked')].map((i) => i.value), fill: $('prepFill').checked,
       cutCards: $('prepCut').checked, cardIds: [...document.querySelectorAll('#cardPick input:checked')].map((i) => i.value), ...dateBounds(),
+      uploads: uploads.map(({ name, role, text }) => ({ name, role, text })),
     };
-    if (!job.ours) return say('Tell me your argument first! 🥺', 'worried');
-    if (job.kind === 'frontline' && !job.theirs) return say('List their responses, one per line! 🥺', 'worried');
+    const up = (...r) => uploads.some((u) => r.includes(u.role));
+    if (!job.ours && !up('mine', 'notes')) return say('Tell me your argument, or upload your case! 🥺', 'worried');
+    if (job.kind === 'frontline' && !job.theirs && !up('theirs', 'flow')) return say('List their responses, or upload their case or your flow! 🥺', 'worried');
     $('prepLog').innerHTML = ''; setBusy(true);
     try {
       await stream('/api/prep', job, (m) => {

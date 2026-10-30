@@ -147,3 +147,14 @@ h3.sub { font-size: 15px; margin: 18px 0 4px; }
 #cardPick .chk { font-size: 13px; margin: 4px 0; }
 .prep-head { margin-top: 14px; }
 .prep-doc .card { padding: 14px 18px; }
+
+.upload-box { border: 2px dashed var(--teal); border-radius: 12px; padding: 10px 12px; margin: 12px 0 4px; transition: background .15s; }
+.upload-box.drag { background: var(--bg); border-color: var(--pink); }
+.upload-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.upload-btn { position: relative; overflow: hidden; display: inline-block; }
+.upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-btn:focus-within { outline: 3px solid var(--pink); outline-offset: 2px; }
+.file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.file-row:last-child { border-bottom: 0; }
+.file-name { font-weight: 700; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 200px; }
+.file-row select { width: auto; margin: 0; flex: 0 1 230px; }
