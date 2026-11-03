@@ -223,8 +223,12 @@
         <textarea id="prepTheirs" rows="3"></textarea>
       </label>
       <div class="kind-opt" data-for="weighing">
+        <div class="seg weigh-mode" role="radiogroup" aria-label="Weighing type">
+          <label class="chk"><input type="radio" name="weighMode" value="custom" checked> Write it for my impacts</label>
+          <label class="chk"><input type="radio" name="weighMode" value="general" id="weighGeneral"> General fill-in-the-blank template to use mid-round (instant, no credits)</label>
+        </div>
         <div class="mech-row" id="mechs">
-          <span class="muted">Mechanisms (leave all off and Negi picks the best two):</span>
+          <span class="muted">Mechanisms, one letter each (leave all off: Negi picks the best 3-4, or the template includes all of them):</span>
           <label class="chk"><input type="checkbox" value="magnitude"> Magnitude</label>
           <label class="chk"><input type="checkbox" value="scope"> Scope</label>
           <label class="chk"><input type="checkbox" value="timeframe"> Timeframe</label>

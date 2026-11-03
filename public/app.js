@@ -424,14 +424,17 @@
     document.querySelectorAll('.prep-kind').forEach((b) => b.setAttribute('aria-checked', b.dataset.kind === k));
     document.querySelectorAll('.kind-opt').forEach((el) => { el.hidden = !el.dataset.for.split(' ').includes(k); });
     $('oursLabel').textContent = t.ours + (uploads.some((u) => u.role === 'mine') ? ' (optional: Negi reads your uploaded case)' : ''); $('prepOurs').placeholder = t.oursPh;
-    $('oursWrap').hidden = !t.ours; $('cardPick').closest('details').hidden = k === 'paracase';
-    $('theirsWrap').hidden = !t.theirs; $('theirsLabel').textContent = t.theirs; $('prepTheirs').placeholder = t.theirsPh;
+    const general = k === 'weighing' && $('weighGeneral').checked;
+    $('oursWrap').hidden = !t.ours || general; $('cardPick').closest('details').hidden = k === 'paracase';
+    $('theirsWrap').hidden = !t.theirs || general;
+    $('prepFill').closest('label').hidden = general; $('theirsLabel').textContent = t.theirs; $('prepTheirs').placeholder = t.theirsPh;
   }
   const savePrepDraft = debounce(() => {
     const d = {}; for (const k of PREP_FIELDS) d[k] = $(k).value;
     fetch('/api/prepdraft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).catch(() => {});
   }, 600);
   for (const k of PREP_FIELDS) $(k).addEventListener('input', savePrepDraft);
+  document.querySelectorAll('input[name=weighMode]').forEach((r) => r.addEventListener('change', () => showKind()));
   document.querySelectorAll('.prep-kind').forEach((b) => (b.onclick = () => { $('prepKind').value = b.dataset.kind; showKind(); savePrepDraft(); }));
   fetch('/api/prepdraft').then((r) => r.json()).then((d) => { for (const k of PREP_FIELDS) if (d && d[k] != null) $(k).value = d[k]; showKind(); }).catch(showKind);
   showKind();
@@ -500,6 +503,7 @@
         (ck.unknownAuthors || []).length ? `⚠️ Mentions ${ck.unknownAuthors.join(', ')}, which isn't one of your cards. Check it or swap in your own card.` : '',
         /\[(stat|card)\]/.test(prepPlain(d)) ? 'ℹ️ Fill in the [stat] / [card] blanks from your evidence.' : '',
         (ck.paraWarnings || []).length ? `⚠️ Check these paraphrases against the original: ${ck.paraWarnings.slice(0, 6).join('; ')}${ck.paraWarnings.length > 6 ? ` and ${ck.paraWarnings.length - 6} more` : ''}.` : '',
+        ck.general ? 'ℹ️ Fill in the [brackets] in round. Delete the letters you don\'t need.' : '',
         (ck.longParts || []).length ? `ℹ️ ${ck.longParts.join('; ')}. Trim or split it before reading.` : '',
       ].filter(Boolean);
       w.innerHTML = `<div class="card-bar"><span class="badge ${warn ? 'review' : 'verified'}">${warn ? '⚠ CHECK' : '✔ SOUNDS LIKE YOU'}</span><b>${esc(d.side || '')}</b><span class="chip">${esc(KIND_NAME[d.kind] || d.kind)}</span><span class="sp"></span>
@@ -568,13 +572,13 @@
       ours: $('prepOurs').value.trim(), theirs: $('prepTheirs').value.trim(), frame: $('prepFrame').value.trim(),
       mechs: [...document.querySelectorAll('#mechs input:checked')].map((i) => i.value), fill: $('prepFill').checked,
       cutCards: $('prepCut').checked, cardIds: [...document.querySelectorAll('#cardPick input:checked')].map((i) => i.value), ...dateBounds(),
-      judge: $('prepJudge').value, includeOriginals: $('prepOriginals').checked,
+      judge: $('prepJudge').value, includeOriginals: $('prepOriginals').checked, general: $('weighGeneral').checked,
       uploads: uploads.map(({ name, role, text, markup }) => ($('prepKind').value === 'paracase' ? { name, role, text, markup } : { name, role, text: text.slice(0, 40000) })),
     };
     const up = (...r) => uploads.some((u) => r.includes(u.role));
     if (job.kind === 'paracase') {
       if (!up('mine')) return say('Upload your case and label it "My case" first! 📄', 'worried');
-    } else {
+    } else if (!(job.kind === 'weighing' && job.general)) {
       if (!job.ours && !up('mine', 'notes')) return say('Tell me your argument, or upload your case! 🥺', 'worried');
       if (job.kind === 'frontline' && !job.theirs && !up('theirs', 'flow')) return say('List their responses, or upload their case or your flow! 🥺', 'worried');
     }
