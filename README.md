@@ -72,6 +72,8 @@ The judge setting also applies to card paraphrases.
 
 Files are read inside your browser. Only the text is kept, saved in the `data` folder, and up to 40,000 characters per file are used. Authors cited in your uploaded files count as real cards, so the voice check won't flag them.
 
+**How many extensions or weighing sections you get:** exactly one per contention you give. Everything you type counts as **one contention**, even across several lines (subpoints stay inside it). Start a new contention with a blank line or a "Contention 2:" / "C2:" label. The box shows the count before you click, for example "1 contention → Negi writes 1 extension".
+
 **Using your cards:** open **Use my saved cards** and tick the ones to draw from. Negi only names authors from cards you tick, and anything she'd need but doesn't have stays as a [stat] or [card] blank.
 
 **Voice check:** every result is checked for AI-sounding phrases ("moreover", "crucial", "delve" and similar), notes to herself, card names that aren't in your cards, and extensions that run long. If any of those turn up, she rewrites it once automatically. Each result shows **✔ SOUNDS LIKE YOU** or a note on what to check. Your prep auto-saves with daily backups, like your cards.

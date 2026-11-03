@@ -412,12 +412,31 @@
   // ------------------------------------------------------------ prep writer
   const KIND_TEXT = {
     frontline: { ours: 'Your argument they\'re responding to', oursPh: 'e.g. Extended deterrence: TPNW ratification forces the B61s out, which tells Moscow NATO won\'t escalate', theirs: 'Their responses (one per line)', theirsPh: 'e.g. Deterrence is conventional now, nukes don\'t matter\nThe B61s are militarily useless\nRussia is already deterred by France and the UK' },
-    extension: { ours: 'Arguments to extend (one per line, "Name: what it says"). Each becomes 3 sentences: uniqueness, link, impact', oursPh: 'e.g. Deterrence: removing B61s ends nuclear sharing, Russia reads that as weakness and probes the Baltics, that escalates to nuclear war', theirs: '', theirsPh: '' },
-    weighing: { ours: 'Your impacts (one per line, "Name: what it says")', oursPh: 'e.g. Nuclear war: Russian probing in the Baltics escalates, millions die', theirs: 'Their impacts to weigh against (optional, one per line)', theirsPh: 'e.g. Humanitarian: nuclear stigma lowers the chance of use' },
+    extension: { ours: 'Your contention(s). Everything counts as ONE contention unless you leave a blank line or write "Contention 2:"', oursPh: 'e.g. Deterrence: removing B61s ends nuclear sharing, Russia reads that as weakness and probes the Baltics, that escalates to nuclear war', theirs: '', theirsPh: '' },
+    weighing: { ours: 'Your contention(s) to weigh. Everything counts as ONE contention unless you leave a blank line or write "Contention 2:"', oursPh: 'e.g. Nuclear war: Russian probing in the Baltics escalates, millions die', theirs: 'Their impacts to weigh against (optional, one per line)', theirsPh: 'e.g. Humanitarian: nuclear stigma lowers the chance of use' },
     paracase: { ours: '', oursPh: '', theirs: '', theirsPh: '' },
     ballot: { ours: 'Your best arguments (one per line)', oursPh: 'e.g. Deterrence: B61s leaving collapses Article 5 credibility', theirs: 'Their best arguments (optional, one per line)', theirsPh: 'e.g. Norms: ratifying stigmatizes nukes' },
   };
   let uploads = []; // uploaded files (declared early: the form labels depend on it)
+  // live count: how many extensions / weighing sections Negi will write
+  function splitContentions(text) {
+    const blocks = []; let cur = [];
+    for (const raw of String(text || '').split('\n')) {
+      const line = raw.trim();
+      if (!line) { if (cur.length) { blocks.push(cur); cur = []; } continue; }
+      if (/^(contention|c)\s*\d+\b/i.test(line) && cur.length) { blocks.push(cur); cur = []; }
+      cur.push(line);
+    }
+    if (cur.length) blocks.push(cur);
+    return blocks;
+  }
+  function showCount() {
+    const k = $('prepKind').value, el = $('contCount');
+    const n = splitContentions($('prepOurs').value).length;
+    el.hidden = !['extension', 'weighing'].includes(k) || !n || (k === 'weighing' && $('weighGeneral').checked);
+    el.textContent = `${n} contention${n > 1 ? 's' : ''} → Negi writes ${n} ${k === 'extension' ? 'extension' : 'weighing section'}${n > 1 ? 's' : ''}`;
+  }
+  $('prepOurs').addEventListener('input', () => showCount());
   const PREP_FIELDS = ['prepKind', 'prepSide', 'prepJudge', 'prepSpeech', 'prepOurs', 'prepTheirs', 'prepFrame'];
   function showKind() {
     const k = $('prepKind').value, t = KIND_TEXT[k];
@@ -427,7 +446,8 @@
     const general = k === 'weighing' && $('weighGeneral').checked;
     $('oursWrap').hidden = !t.ours || general; $('cardPick').closest('details').hidden = k === 'paracase';
     $('theirsWrap').hidden = !t.theirs || general;
-    $('prepFill').closest('label').hidden = general; $('theirsLabel').textContent = t.theirs; $('prepTheirs').placeholder = t.theirsPh;
+    $('prepFill').closest('label').hidden = general;
+    showCount(); $('theirsLabel').textContent = t.theirs; $('prepTheirs').placeholder = t.theirsPh;
   }
   const savePrepDraft = debounce(() => {
     const d = {}; for (const k of PREP_FIELDS) d[k] = $(k).value;

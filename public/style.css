@@ -169,3 +169,5 @@ h3.sub { font-size: 15px; margin: 18px 0 4px; }
 
 .para-note { border: 2px dashed var(--teal); border-radius: 10px; padding: 4px 12px; margin: 8px 0; }
 .para-note p { margin: 6px 0; }
+
+.cont-count { font-size: 13px; font-weight: 700; color: var(--teal-dk); margin: -4px 0 8px; }
